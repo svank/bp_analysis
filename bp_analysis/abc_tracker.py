@@ -26,7 +26,7 @@ def calc_laplacian(image, kernel=None):
         assert len(kernel.shape) == 2
         assert kernel.shape[0] == kernel.shape[1] == 1
     
-    return scp.signal.convolve2d(image, kernel, mode='valid')
+    return scp.signal.convolve2d(image, kernel, mode='valid').astype(image.dtype)
 
 def find_seeds(image, config, print_stats=True, **kwargs):
     n_sigma = config.getfloat('n_sigma', 3)
@@ -79,7 +79,7 @@ def dilate_laplacian(config, seeds, im=None, laplacian=None, mask=None,
         n_rounds = get_n_rounds_dilation(config)
     
     struc = gen_kernel(config.getboolean('connect_diagonal', True))
-    seeds = scp.ndimage.morphology.binary_dilation(
+    seeds = scp.ndimage.binary_dilation(
             seeds,
             structure=struc,
             iterations=n_rounds,
@@ -469,8 +469,8 @@ def id_image(im, config, also_neg_override=False):
     if seeds.shape != im.shape:
         seeds = np.pad(seeds, 1)
         laplacian = np.pad(laplacian, 1)
-    dilated = dilate(config, seeds, im=im, laplacian=laplacian)
-    features = dilated.astype(np.int8)
+    features = dilate(config, seeds, im=im, laplacian=laplacian)
+    features = features.astype(np.int8)
     remove_edge_touchers(features, config)
     remove_false_positives(features, laplacian, config, im, seeds)
     filter_close_neighbors(features, config)
