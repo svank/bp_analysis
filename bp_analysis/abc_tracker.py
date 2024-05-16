@@ -96,7 +96,7 @@ def dilate_contour(config, seeds, im, n_rounds=None):
     contour_lower_thresh = config.getfloat('contour_lower_thresh', None)
     
     struc = gen_kernel(config.getboolean('connect_diagonal', True))
-    labeled_feats_original, n_feats = scipy.ndimage.measurements.label(
+    labeled_feats_original, n_feats = scipy.ndimage.label(
             seeds != 0, struc)
     if n_feats == 0:
         # If there's no dilation to be done, we should stop now, or we'll
@@ -230,7 +230,7 @@ def _dilate_contour_inner(feats, im, to_expand, directions, n_rounds,
 def remove_edge_touchers(features, config):
     # Uniquely label contiguous regions
     struc = gen_kernel(config.getboolean('connect_diagonal', True))
-    labeled_feats, _ = scipy.ndimage.measurements.label(features > 0, struc)
+    labeled_feats, _ = scipy.ndimage.label(features > 0, struc)
     coord_map = gen_coord_map(labeled_feats)
     
     edges = np.concatenate((
@@ -264,11 +264,11 @@ def remove_false_positives(features, laplacian, config, im, seeds):
     
     # Uniquely label contiguous regions
     struc = gen_kernel(config.getboolean('connect_diagonal', True))
-    labeled_feats, n_feat = scipy.ndimage.measurements.label(
+    labeled_feats, n_feat = scipy.ndimage.label(
             features > 0, struc)
-    labeled_feats_dilated, _ = scipy.ndimage.measurements.label(
+    labeled_feats_dilated, _ = scipy.ndimage.label(
             masked_dilation > 0, struc)
-    labeled_feats_full_dilated, _ = scipy.ndimage.measurements.label(
+    labeled_feats_full_dilated, _ = scipy.ndimage.label(
             full_dilation > 0, struc)
     coord_map_features = gen_coord_map(labeled_feats)
     coord_map_dilated = gen_coord_map(labeled_feats_dilated)
@@ -308,7 +308,7 @@ def filter_close_neighbors(features, config):
     The input image is modified in-place, with rejected features replaced with -2
     """
     struc = gen_kernel(config.getboolean('connect_diagonal', True))
-    labeled_feats, n_feat = scipy.ndimage.measurements.label(features > 0, struc)
+    labeled_feats, n_feat = scipy.ndimage.label(features > 0, struc)
     coord_map = gen_coord_map(labeled_feats)
     
     closeness = config.getint('proximity_thresh', 4)
