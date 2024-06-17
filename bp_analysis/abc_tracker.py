@@ -26,7 +26,6 @@ def calc_laplacian(image, kernel=None):
         kernel = np.array([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]])
     else:
         assert len(kernel.shape) == 2
-        assert kernel.shape[0] == kernel.shape[1] == 1
     
     return scp.signal.convolve2d(image, kernel, mode='valid').astype(image.dtype)
 
@@ -281,7 +280,7 @@ def remove_false_positives(features, laplacian, config, im, seeds):
         rs, cs = coord_map_features[i]
         
         # The feature's ID is not necessarily the same in all three maps. To
-        # find our feature, let's find the brigest pixel in the "true" map and
+        # find our feature, let's find the brightest pixel in the "true" map and
         # check the ID of that pixel in the other two maps.
         brightest = np.argmax(im[rs, cs])
         r = rs[brightest]
