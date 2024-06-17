@@ -2,22 +2,24 @@
 
 # Amorphous, Bending Contortionist Tracker
 
-from tqdm.contrib.concurrent import process_map
+import argparse
+import configparser
+from datetime import datetime
+import multiprocessing
+import os
 
+from astropy.io import fits
 import numba
 from numba.typed import List
 import numpy as np
 import scipy as scp
 import scipy.ndimage
 import scipy.signal
+from tqdm.contrib.concurrent import process_map
 
-import argparse
-import configparser
-import multiprocessing
-import os
-import shutil
-
+from .feature import Feature, TrackedImage
 from .tracking_utils import gen_coord_map, gen_kernel
+
 
 def calc_laplacian(image, kernel=None):
     if kernel is None:
@@ -384,80 +386,60 @@ def id_files(dir, out_dir, config_file, silent=False, procs=None):
         if not os.path.exists(config_file):
             raise RuntimeError(f"Config file '{config_file}' does not exist")
         config.read(config_file)
-    if 'dirs' in config:
-        if 'data_dir' in config['dirs'] and dir is None:
-            dir = config['dirs']['data_dir']
-        if 'out_dir' in config['dirs'] and out_dir is None:
-            out_dir = config['dirs']['out_dir']
-    
-    os.makedirs(out_dir, exist_ok=True)
-    
-    config_out = os.path.join(out_dir, "tracking.cfg")
-    if type(config_file) == configparser.ConfigParser:
-        with open(config_out, 'w') as out_file:
-            config.write(out_file)
-    else:
-        shutil.copy2(config_file, config_out)
+    if dir is None and 'dirs' in config and 'data_dir' in config['dirs']:
+        dir = config['dirs']['data_dir']
     
     config = config['main']
     files = scan_directory_for_data(dir, config)
-    iterable = [(dir, out_dir, file, config) for file in files]
+    iterable = [(file, config) for file in files]
     if not silent:
-        process_map(wrapper, iterable, chunksize=1,
+        tracked_images = process_map(wrapper, iterable, chunksize=1,
                 max_workers=procs if procs else os.cpu_count())
     else:
         with multiprocessing.Pool(processes=procs) as p:
-            p.starmap(fully_process_one_image, iterable, chunksize=1)
-    #for i in iterable:
-        #fully_process_one_image(*i)
+            tracked_images = p.starmap(
+                fully_process_one_image, iterable, chunksize=1)
+    return tracked_images
 
 def wrapper(x):
     fully_process_one_image(*x)
 
-def scan_directory_for_data(dir, config):
+def scan_directory_for_data(dir):
     files = sorted(os.listdir(dir))
-    if 'Header' in files[0]:
-        files = [f.split('.')[-1] for f in files if 'Header' in f]
-        config['file_mode'] = 'full cubes'
-    else:
-        files = [f for f in files
-                 if not os.path.isdir(os.path.join(dir, f))
-                    and f[-4:] not in ('.png', '.mp4', '.cfg', '.npz')]
-        config['file_mode'] = 'slices'
+    files = [os.path.join(dir, f) for f in files if f.endswith('fits')]
     return files
 
-def load_data(dir, file, config):
-    if config['file_mode'] == 'slices':
-        time, data_cube = read_file.read_file(
-                os.path.join(dir, file), config.getfloat('blur', 0))
-        
-        if data_cube.shape[0] == 1:
-            data = data_cube[0]
-        else:
-            i = config.getint('cube_index', 6)
-            data = data_cube[i]
-    elif config['file_mode'] == 'full cubes':
-        cube = read_file.read_cube(dir, file, blur=config.getfloat('blur', 0))
-        cube = cube.transpose()
-        time = cube.t
-        data = cube.Bz[config.getint('cube_index', 0)]
-    else:
-        raise RuntimeError("Bad value for file_mode")
+def load_data(file):
+    data, hdr = fits.getdata(file, header=True)
+    time = datetime.strptime(hdr['date-avg'], "%Y-%m-%dT%H:%M:%S.%f")
     
     return time, data
 
-def fully_process_one_image(dir, out_dir, file, config):
-    time, data = load_data(dir, file, config)
+def fully_process_one_image(file, config):
+    time, data = load_data(file)
     
     features, seeds, feature_classes = id_image(data, config)
-    seeds = np.nonzero(seeds)
     
-    np.savez_compressed(os.path.join(out_dir, file + '.npz'),
-            time=time,
-            features=features,
-            feature_classes=feature_classes,
-            seeds=seeds,
-            orig_file=os.path.join(dir, file))
+    struc = gen_kernel(config.getboolean('connect_diagonal', True))
+    labeled_feats, n_feat = scipy.ndimage.label(features, struc)
+    regions = scipy.ndimage.find_objects(labeled_feats)
+    tracked_image = TrackedImage(config=config, time=time, source_file=file)
+    for id, region in enumerate(regions, start=1):
+        corner = (region[0].start, region[1].start)
+        feature_cutout = labeled_feats[region] == id
+        seed_cutout = np.where(feature_cutout, seeds[region], 0)
+        feature_flag = features[region][feature_cutout][0]
+        feature_class = feature_classes[region][feature_cutout][0]
+        feature = Feature(
+            id=id,
+            cutout_corner=corner,
+            cutout=feature_cutout,
+            seed_cutout=seed_cutout,
+            flag=feature_flag,
+            feature_class=feature_class)
+        tracked_image.add_features(feature)
+    
+    return tracked_image
 
 def id_image(im, config, also_neg_override=False):
     if config.getboolean('also_id_negative', False) and not also_neg_override:
