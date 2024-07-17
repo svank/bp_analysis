@@ -379,7 +379,7 @@ def filter_close_neighbors(features, config):
             for id in ids:
                 features[coord_map[id]] = -2
 
-def id_files(dir, out_dir, config_file, silent=False, procs=None):
+def id_files(config_file, dir=None, silent=False, procs=None):
     if type(config_file) == configparser.ConfigParser:
         config = config_file
     else:
@@ -410,14 +410,18 @@ def scan_directory_for_data(dir):
     files = [os.path.join(dir, f) for f in files if f.endswith('fits')]
     return files
 
-def load_data(file):
+def load_data(file, config):
     data, hdr = fits.getdata(file, header=True)
     time = datetime.strptime(hdr['date-avg'], "%Y-%m-%dT%H:%M:%S.%f")
+
+    trim = config.getint('trim_image', 0)
+    if trim:
+        data = data[trim:-trim, trim:-trim]
     
     return time, data
 
 def fully_process_one_image(file, config):
-    time, data = load_data(file)
+    time, data = load_data(file, config)
     
     features, seeds, feature_classes = id_image(data, config)
     
