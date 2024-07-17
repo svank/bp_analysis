@@ -106,7 +106,6 @@ def dilate_contour(config, seeds, im, n_rounds=None):
     coord_map = gen_coord_map(labeled_feats_original)
     
     ids_to_expand = list(coord_map.keys())
-    ids_to_expand.remove(0)
     
     max_values = {id: im[coord_map[id]].max() for id in ids_to_expand}
     
@@ -287,6 +286,9 @@ def remove_false_positives(features, laplacian, config, im, seeds):
         c = cs[brightest]
         id_dilated = labeled_feats_dilated[r, c]
         id_full_dilated = labeled_feats_full_dilated[r, c]
+        
+        if id_full_dilated == 0 or id_dilated == 0:
+            raise RuntimeError("Feature can't be found post-dilation")
         
         coords_dilated = coord_map_dilated[id_dilated]
         coords_full_dilated = coord_map_full_dilated[id_full_dilated]
