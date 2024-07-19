@@ -2,7 +2,7 @@ import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 import numpy as np
 
-from . import db_analysis
+from . import abc_tracker, db_analysis
 
 class Feature:
     def __init__(self, id, cutout_corner, cutout, seed_cutout, flag,
@@ -14,6 +14,10 @@ class Feature:
         self.flag = flag
         self.feature_class = feature_class
         self.image = None
+
+    @property
+    def is_good(self):
+        return self.flag == abc_tracker.GOOD
     
     def plot_onto(self, ax, ids=False):
         r, c = np.nonzero(self.cutout)

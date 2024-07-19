@@ -21,6 +21,13 @@ from .feature import Feature, TrackedImage
 from .tracking_utils import gen_coord_map, gen_kernel
 
 
+GOOD = 1
+FALSE_POS = -1
+CLOSE_NEIGHBOR = -2
+EDGE = -3
+
+
+
 def calc_laplacian(image, kernel=None):
     if kernel is None:
         kernel = np.array([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]])
@@ -241,7 +248,7 @@ def remove_edge_touchers(features, config):
     ids = np.unique(edges[edges != 0])
     for id in ids:
         coords = coord_map[id]
-        features[coords] = -3
+        features[coords] = EDGE
 
 def remove_false_positives(features, laplacian, config, im, seeds):
     """
@@ -301,7 +308,7 @@ def remove_false_positives(features, laplacian, config, im, seeds):
         
         # Erase features that don't meet the threshold
         if gained_pix / possible_pix > config.getfloat('fpos_thres', 0.2):
-            features[rs, cs] = -1
+            features[rs, cs] = FALSE_POS
 
 def filter_close_neighbors(features, config):
     """
@@ -372,12 +379,12 @@ def filter_close_neighbors(features, config):
         if not np.all(pix_is_good):
             # This feature is too close to another feature,
             # so we flag it
-            features[(xcoords, ycoords)] = -2
+            features[(xcoords, ycoords)] = CLOSE_NEIGHBOR
 
             # Also flag those neighboring features
             ids = np.unique(neighbors[np.logical_not(pix_is_good)])
             for id in ids:
-                features[coord_map[id]] = -2
+                features[coord_map[id]] = CLOSE_NEIGHBOR
 
 def id_files(config_file, dir=None, silent=False, procs=None):
     if type(config_file) == configparser.ConfigParser:
