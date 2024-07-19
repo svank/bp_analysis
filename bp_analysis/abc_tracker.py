@@ -137,7 +137,7 @@ def dilate_contour(config, seeds, im, n_rounds=None):
         to_expand = List()
         for id in ids_to_expand:
             rs, cs = coord_map[id]
-            rmin, rmax, cmin, cmax = _dilate_contour_feat_neighborhood(
+            rmin, rmax, cmin, cmax = _feat_neighborhood(
                     rs, cs, im, min_finding_scale * n_rounds)
             region = im[rmin:rmax, cmin:cmax]
             if contour_lower_thresh is not None:
@@ -177,12 +177,12 @@ def dilate_contour(config, seeds, im, n_rounds=None):
             # outside the new contour, but what if those pixels would otherwise
             # have been grabbed by a different feature? It's more robust to
             # just re-do the whole dilation. So let's let the loop repeat and
-            # re-do the dilation with out updated max_values.
+            # re-do the dilation without updated max_values.
         else:
             break
     return labeled_feats > 0
 
-def _dilate_contour_feat_neighborhood(rs, cs, im, window_size):
+def _feat_neighborhood(rs, cs, im, window_size):
     window_size = int(window_size)
     rmin = max(0, rs.min() - window_size)
     cmin = max(0, cs.min() - window_size)
@@ -323,68 +323,39 @@ def filter_close_neighbors(features, config):
     
     closeness = config.getint('proximity_thresh', 4)
     # Iterate over all features in image
-    for i in range(1, n_feat+1):
-        # ID the pixels of this feature
-        xcoords, ycoords = coord_map[i]
-
-        # We're gonna paste this feature onto a smaller canvas, where
-        # we'll dilate it by `closeness` pixels. Then we can get coordinates
-        # off this canvas and use them to investigate the neighboring pixels
-        # in the real image.
-
-        # Move these coordinates to the origin
-        xoffset = np.min(xcoords)
-        xcoords -= xoffset
-        yoffset = np.min(ycoords)
-        ycoords -= yoffset
-
-        # Make a canvas that's just big enough
-        canvas = np.zeros((2*closeness + np.max(xcoords),
-                           2*closeness + np.max(ycoords)))
-        xcoords += closeness
-        ycoords += closeness
-        # Paste onto the canvas
-        canvas[(xcoords, ycoords)] = 1
+    for id in range(1, n_feat + 1):
+        rmin, rmax, cmin, cmax = _feat_neighborhood(
+            *coord_map[id], labeled_feats, closeness)
+        region = labeled_feats[rmin:rmax, cmin:cmax] == id
 
         # Make a `closeness` by `closeness` circular structuring element
-        x, y = np.ogrid[-closeness:closeness+1, -closeness:closeness+1]
-        struct = x**2 + y**2 < closeness**2
+        x, y = np.ogrid[-closeness:closeness + 1, -closeness:closeness + 1]
+        struct = x ** 2 + y ** 2 <= closeness ** 2
 
         # Dilate
         # Note that this need not be the configured dilation mechanism, because
         # here we're just wanting to know what other features are nearby
-        vicinity = scp.ndimage.morphology.binary_dilation(
-            canvas,
+        dilated = scp.ndimage.binary_dilation(
+            region,
             structure=struct,
             iterations=1)
 
         # Get the pixels marked on the canvas, and translate those coordinates
         # to the real image
-        xvicin, yvicin = np.nonzero(vicinity)
-        xvicin += xoffset - closeness
-        yvicin += yoffset - closeness
-        xcoords += xoffset - closeness
-        ycoords += yoffset - closeness
-
-        # Remove coordinates off the edge of the image
-        valid_vicin = ((xvicin >= 0) * (xvicin < labeled_feats.shape[0])
-                     * (yvicin >= 0) * (yvicin < labeled_feats.shape[1]))
-        xvicin = xvicin[valid_vicin]
-        yvicin = yvicin[valid_vicin]
+        rvicinity, cvicinity = np.nonzero(dilated & ~region)
+        rvicinity += rmin
+        cvicinity += cmin
 
         # Look up those neighboring pixels and see if they contain
         # other features
-        neighbors = labeled_feats[(xvicin, yvicin)]
-        pix_is_good = (neighbors == 0) + (neighbors == i)
-        if not np.all(pix_is_good):
+        neighbors = labeled_feats[(rvicinity, cvicinity)]
+        neighbors = np.unique(neighbors[neighbors != 0])
+        for neighbor in neighbors:
             # This feature is too close to another feature,
             # so we flag it
-            features[(xcoords, ycoords)] = CLOSE_NEIGHBOR
+            features[coord_map[id]] = CLOSE_NEIGHBOR
+            features[coord_map[neighbor]] = CLOSE_NEIGHBOR
 
-            # Also flag those neighboring features
-            ids = np.unique(neighbors[np.logical_not(pix_is_good)])
-            for id in ids:
-                features[coord_map[id]] = CLOSE_NEIGHBOR
 
 def id_files(config_file, dir=None, silent=False, procs=None):
     if type(config_file) == configparser.ConfigParser:
