@@ -320,7 +320,7 @@ def filter_close_neighbors(features, config):
     struc = gen_kernel(config.getboolean('connect_diagonal', True))
     labeled_feats, n_feat = scipy.ndimage.label(features > 0, struc)
     coord_map = gen_coord_map(labeled_feats)
-    
+
     closeness = config.getint('proximity_thresh', 4)
     # Iterate over all features in image
     for id in range(1, n_feat + 1):
@@ -398,7 +398,7 @@ def load_data(file, config):
     
     return time, data
 
-def fully_process_one_image(file, config):
+def fully_process_one_image(file, config) -> TrackedImage:
     time, data = load_data(file, config)
     
     features, seeds, feature_classes = id_image(data, config)
@@ -410,6 +410,7 @@ def fully_process_one_image(file, config):
     for id, region in enumerate(regions, start=1):
         corner = (region[0].start, region[1].start)
         feature_cutout = labeled_feats[region] == id
+        data_cutout = data[region]
         seed_cutout = np.where(feature_cutout, seeds[region], 0)
         feature_flag = features[region][feature_cutout][0]
         feature_class = feature_classes[region][feature_cutout][0]
@@ -417,6 +418,7 @@ def fully_process_one_image(file, config):
             id=id,
             cutout_corner=corner,
             cutout=feature_cutout,
+            data_cutout=data_cutout,
             seed_cutout=seed_cutout,
             flag=feature_flag,
             feature_class=feature_class)

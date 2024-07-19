@@ -5,15 +5,25 @@ import numpy as np
 from . import abc_tracker, db_analysis
 
 class Feature:
-    def __init__(self, id, cutout_corner, cutout, seed_cutout, flag,
-                 feature_class):
+    def __init__(self, id, cutout_corner, cutout, data_cutout, seed_cutout,
+                 flag, feature_class):
         self.id = id
         self.cutout_corner = cutout_corner
         self.cutout = cutout
         self.seed_cutout = seed_cutout
+        self.data_cutout = data_cutout
         self.flag = flag
         self.feature_class = feature_class
         self.image = None
+
+    @property
+    def brightest_pixel(self):
+        idx = np.argmax(self.data_cutout[self.cutout])
+        rs, cs = np.where(self.cutout)
+        r, c = rs[idx], cs[idx]
+        r += self.cutout_corner[0]
+        c += self.cutout_corner[1]
+        return r, c
 
     @property
     def is_good(self):
@@ -40,7 +50,7 @@ class Feature:
 
 class TrackedImage:
     def __init__(self, source_file, time, config):
-        self.features = []
+        self.features: list[Feature] = []
         self.source_file = source_file
         self.time = time
         self.config = config
