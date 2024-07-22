@@ -9,6 +9,7 @@ dependencies = [
 	"astropy >= 5.0",
 	"ipywidgets >= 8.0",
 	"matplotlib >= 3.6",
+	"numba",
 	"numpy >= 1.21",
 	"reproject >= 0.13",
 	"scipy >= 1.8",
