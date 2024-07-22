@@ -28,7 +28,9 @@ def calc_centroid(d, weight=True):
         y[i] = np.sum(weights * coords[1]) / total_weight
     return x, y
 
-def outline_BP(r, c, scale=16/1000, line_color=(1,1,1,.8), outline_color=(0,0,0,.75), linewidth=1, ax=None, offset=0, **kwargs):
+def outline_BP(r, c, scale=16/1000, line_color=(1,1,1,.8),
+               outline_color=(0,0,0,.75), linewidth=1, ax=None, offset=0,
+               **kwargs):
     """
     A very-modified stackoverflow routine to draw lines outlining coordinates
     """
@@ -43,7 +45,7 @@ def outline_BP(r, c, scale=16/1000, line_color=(1,1,1,.8), outline_color=(0,0,0,
     mapimg[c - np.min(c) + 1, r - np.min(r) + 1] = 1
     
     # A horizontal line segment is needed, when the pixels next to each other
-    # verically belong to diffferent groups (one is part of the mask, the
+    # vertically belong to different groups (one is part of the mask, the
     # other isn't)
     hor_seg = np.where(mapimg[1:, :] != mapimg[:-1, :])
     

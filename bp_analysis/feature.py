@@ -4,12 +4,13 @@ import numpy as np
 
 from . import abc_tracker, db_analysis
 
+
 class Feature:
     def __init__(self, id, cutout_corner, cutout, data_cutout, seed_cutout,
                  flag, feature_class):
         self.id = id
         self.cutout_corner = cutout_corner
-        self.cutout = cutout
+        self.cutout = cutout.astype(bool, copy=False)
         self.seed_cutout = seed_cutout
         self.data_cutout = data_cutout
         self.flag = flag
@@ -19,7 +20,7 @@ class Feature:
     @property
     def brightest_pixel(self):
         idx = np.argmax(self.data_cutout[self.cutout])
-        rs, cs = np.where(self.cutout)
+        rs, cs = np.nonzero(self.cutout)
         r, c = rs[idx], cs[idx]
         r += self.cutout_corner[0]
         c += self.cutout_corner[1]
@@ -47,6 +48,7 @@ class Feature:
             ax = plt.gca()
         self.plot_onto(ax, **kwargs)
         ax.set_aspect('equal')
+
 
 class TrackedImage:
     def __init__(self, source_file, time, config):
