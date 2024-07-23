@@ -2,8 +2,8 @@
 
 # Amorphous, Bending Contortionist Tracker
 
-import argparse
 import configparser
+import copy
 from datetime import datetime
 import multiprocessing
 import os
@@ -17,7 +17,7 @@ import scipy.ndimage
 import scipy.signal
 from tqdm.contrib.concurrent import process_map
 
-from .feature import Feature, TrackedImage
+from .feature import TrackedImage
 from .tracking_utils import gen_coord_map, gen_kernel
 
 
@@ -27,7 +27,6 @@ CLOSE_NEIGHBOR = -2
 EDGE = -3
 
 
-
 def calc_laplacian(image, kernel=None):
     if kernel is None:
         kernel = np.array([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]])
@@ -35,6 +34,7 @@ def calc_laplacian(image, kernel=None):
         assert len(kernel.shape) == 2
     
     return scp.signal.convolve2d(image, kernel, mode='valid').astype(image.dtype)
+
 
 def find_seeds(image, config, print_stats=True, **kwargs):
     n_sigma = config.getfloat('n_sigma', 3)
@@ -59,8 +59,10 @@ def find_seeds(image, config, print_stats=True, **kwargs):
     
     return seeds, laplacian
 
+
 def get_n_rounds_dilation(config):
     return config.getint('dilation_rounds', 3)
+
 
 def dilate(config, *args, **kwargs):
     method = config.get("dilation_method", "laplacian")
@@ -72,6 +74,7 @@ def dilate(config, *args, **kwargs):
         return dilate_contour(config, *args, **kwargs)
     else:
         raise ValueError(f"Unrecognized dilation method '{method}'")
+
 
 def dilate_laplacian(config, seeds, im=None, laplacian=None, mask=None,
         n_rounds=None):
@@ -93,6 +96,7 @@ def dilate_laplacian(config, seeds, im=None, laplacian=None, mask=None,
             iterations=n_rounds,
             mask=mask)
     return seeds
+
 
 def dilate_contour(config, seeds, im, n_rounds=None):
     if n_rounds is None:
@@ -182,6 +186,7 @@ def dilate_contour(config, seeds, im, n_rounds=None):
             break
     return labeled_feats > 0
 
+
 def _feat_neighborhood(rs, cs, im, window_size):
     window_size = int(window_size)
     rmin = max(0, rs.min() - window_size)
@@ -189,6 +194,7 @@ def _feat_neighborhood(rs, cs, im, window_size):
     rmax = min(im.shape[0], rs.max() + window_size + 1)
     cmax = min(im.shape[1], cs.max() + window_size + 1)
     return rmin, rmax, cmin, cmax
+
 
 @numba.njit(cache=True)
 def _dilate_contour_inner(feats, im, to_expand, directions, n_rounds,
@@ -234,12 +240,8 @@ def _dilate_contour_inner(feats, im, to_expand, directions, n_rounds,
                         (new_rs, new_cs, feat_min, feat_max, max_is_clamped))
     return feats, needs_redo
 
-def remove_edge_touchers(features, config):
-    # Uniquely label contiguous regions
-    struc = gen_kernel(config.getboolean('connect_diagonal', True))
-    labeled_feats, _ = scipy.ndimage.label(features > 0, struc)
-    coord_map = gen_coord_map(labeled_feats)
-    
+
+def remove_edge_touchers(labeled_feats, tracked_image):
     edges = np.concatenate((
         labeled_feats[0:2].flatten(),
         labeled_feats[-2:].flatten(),
@@ -247,43 +249,40 @@ def remove_edge_touchers(features, config):
         labeled_feats[:, -2:].flatten()))
     ids = np.unique(edges[edges != 0])
     for id in ids:
-        coords = coord_map[id]
-        features[coords] = EDGE
+        tracked_image[id].flag = EDGE
 
-def remove_false_positives(features, laplacian, config, im, seeds):
+
+def remove_false_positives(labeled_feats, laplacian, config, im, seeds,
+                           tracked_image):
     """
     Remove features for which another round of dilation would add too many
     pixels, on the idea that, after the rounds already done, true bright points
     should be mostly marked and the surrounding pixels should be dark lanes,
     while false positives are inside granules and surrounded by more bright
     pixels.
-    
-    The input image is modified in-place, with rejected features replaced with -1
     """
     # Dilate normally but with an extra round to see what would have been added
     # to each feature
     masked_dilation = dilate(config, seeds, im=im,
             laplacian=laplacian, n_rounds=1+get_n_rounds_dilation(config))
     # Dilate the existing features without restrictions to see how many pixels
-    # surround each feature
+    # surround each feature. As we just need to expand the feature uniformly,
+    # it doesn't matter which dilation method we use.
     full_dilation = dilate_laplacian(
-            config, features, mask=np.ones_like(im), n_rounds=1)
+            config, labeled_feats > 0, mask=np.ones_like(im), n_rounds=1)
     
     # Uniquely label contiguous regions
     struc = gen_kernel(config.getboolean('connect_diagonal', True))
-    labeled_feats, n_feat = scipy.ndimage.label(
-            features > 0, struc)
     labeled_feats_dilated, _ = scipy.ndimage.label(
             masked_dilation > 0, struc)
     labeled_feats_full_dilated, _ = scipy.ndimage.label(
             full_dilation > 0, struc)
-    coord_map_features = gen_coord_map(labeled_feats)
     coord_map_dilated = gen_coord_map(labeled_feats_dilated)
     coord_map_full_dilated = gen_coord_map(labeled_feats_full_dilated)
     
     # Test each feature
-    for i in range(1, n_feat+1):
-        rs, cs = coord_map_features[i]
+    for feature in tracked_image.features:
+        rs, cs = feature.indices
         
         # The feature's ID is not necessarily the same in all three maps. To
         # find our feature, let's find the brightest pixel in the "true" map and
@@ -301,37 +300,35 @@ def remove_false_positives(features, laplacian, config, im, seeds):
         coords_full_dilated = coord_map_full_dilated[id_full_dilated]
         
         # Count up rejected pixels
-        # (Each dilated image is a binary image)
         orig_pix = len(rs)
         possible_pix = len(coords_full_dilated[0]) - orig_pix
         gained_pix = len(coords_dilated[0]) - orig_pix
         
-        # Erase features that don't meet the threshold
+        # Mark features that don't meet the threshold
         if gained_pix / possible_pix > config.getfloat('fpos_thres', 0.2):
-            features[rs, cs] = FALSE_POS
+            feature.flag = FALSE_POS
 
-def filter_close_neighbors(features, config):
+
+def filter_close_neighbors(labeled_feats, config, tracked_image):
     """
     Remove features that are too close to another feature, on the grounds that
     there may be room for confusion.
-    
-    The input image is modified in-place, with rejected features replaced with -2
     """
-    struc = gen_kernel(config.getboolean('connect_diagonal', True))
-    labeled_feats, n_feat = scipy.ndimage.label(features > 0, struc)
-    coord_map = gen_coord_map(labeled_feats)
-
     closeness = config.getint('proximity_thresh', 4)
     # Iterate over all features in image
-    for id in range(1, n_feat + 1):
+    for feature in tracked_image.features:
+        if feature.flag == CLOSE_NEIGHBOR:
+            # This feature was already flagged as too close to one of its
+            # neighbors
+            continue
         rmin, rmax, cmin, cmax = _feat_neighborhood(
-            *coord_map[id], labeled_feats, closeness)
-        region = labeled_feats[rmin:rmax, cmin:cmax] == id
-
+            *feature.indices, labeled_feats, closeness)
+        region = labeled_feats[rmin:rmax, cmin:cmax] == feature.id
+        
         # Make a `closeness` by `closeness` circular structuring element
         x, y = np.ogrid[-closeness:closeness + 1, -closeness:closeness + 1]
         struct = x ** 2 + y ** 2 <= closeness ** 2
-
+        
         # Dilate
         # Note that this need not be the configured dilation mechanism, because
         # here we're just wanting to know what other features are nearby
@@ -339,13 +336,13 @@ def filter_close_neighbors(features, config):
             region,
             structure=struct,
             iterations=1)
-
+        
         # Get the pixels marked on the canvas, and translate those coordinates
         # to the real image
         rvicinity, cvicinity = np.nonzero(dilated & ~region)
         rvicinity += rmin
         cvicinity += cmin
-
+        
         # Look up those neighboring pixels and see if they contain
         # other features
         neighbors = labeled_feats[(rvicinity, cvicinity)]
@@ -353,8 +350,9 @@ def filter_close_neighbors(features, config):
         for neighbor in neighbors:
             # This feature is too close to another feature,
             # so we flag it
-            features[coord_map[id]] = CLOSE_NEIGHBOR
-            features[coord_map[neighbor]] = CLOSE_NEIGHBOR
+            tracked_image[neighbor].flag = CLOSE_NEIGHBOR
+        if len(neighbors):
+            tracked_image[feature.id].flag = CLOSE_NEIGHBOR
 
 
 def id_files(config_file, dir=None, silent=False, procs=None):
@@ -380,56 +378,55 @@ def id_files(config_file, dir=None, silent=False, procs=None):
                 fully_process_one_image, iterable, chunksize=1)
     return tracked_images
 
+
 def wrapper(x):
     fully_process_one_image(*x)
+
 
 def scan_directory_for_data(dir):
     files = sorted(os.listdir(dir))
     files = [os.path.join(dir, f) for f in files if f.endswith('fits')]
     return files
 
+
 def load_data(file, config):
     data, hdr = fits.getdata(file, header=True)
     time = datetime.strptime(hdr['date-avg'], "%Y-%m-%dT%H:%M:%S.%f")
-
+    
     trim = config.getint('trim_image', 0)
     if trim:
         data = data[trim:-trim, trim:-trim]
     
     return time, data
 
+
 def fully_process_one_image(file, config) -> TrackedImage:
     time, data = load_data(file, config)
+    tracked_image = TrackedImage(config=config, time=time, source_file=file,
+                                 source_shape=data.shape)
     
-    features, seeds, feature_classes = id_image(data, config)
+    if config.getboolean('also_id_negative', False):
+        negative_tracked_image = copy.deepcopy(tracked_image)
+        neg_data = -data
+        mask = neg_data > 0
+        id_image(data, config, negative_tracked_image, mask)
+        for feature in negative_tracked_image.features:
+            feature.feature_class = 'negative'
+        mask = data > 0
+    else:
+        mask = None
     
-    struc = gen_kernel(config.getboolean('connect_diagonal', True))
-    labeled_feats, n_feat = scipy.ndimage.label(features, struc)
-    regions = scipy.ndimage.find_objects(labeled_feats)
-    tracked_image = TrackedImage(config=config, time=time, source_file=file)
-    for id, region in enumerate(regions, start=1):
-        corner = (region[0].start, region[1].start)
-        feature_cutout = labeled_feats[region] == id
-        data_cutout = data[region]
-        seed_cutout = np.where(feature_cutout, seeds[region], 0)
-        feature_flag = features[region][feature_cutout][0]
-        feature_class = feature_classes[region][feature_cutout][0]
-        feature = Feature(
-            id=id,
-            cutout_corner=corner,
-            cutout=feature_cutout,
-            data_cutout=data_cutout,
-            seed_cutout=seed_cutout,
-            flag=feature_flag,
-            feature_class=feature_class)
-        tracked_image.add_features(feature)
+    id_image(data, config, tracked_image, mask)
+    
+    if config.getboolean('also_id_negative', False):
+        for feature in tracked_image.features:
+            feature.feature_class = 'positive'
+        tracked_image.merge_features(negative_tracked_image)
     
     return tracked_image
 
-def id_image(im, config, also_neg_override=False):
-    if config.getboolean('also_id_negative', False) and not also_neg_override:
-        raw_im = im.copy()
-        im[im < 0] = 0
+
+def id_image(im, config, tracked_image, mask=None):
     if config.getboolean('subtract_data_min', True):
         im = im - im.min()
     seeds, laplacian = find_seeds(im, print_stats=False, config=config)
@@ -437,41 +434,15 @@ def id_image(im, config, also_neg_override=False):
         seeds = np.pad(seeds, 1)
         laplacian = np.pad(laplacian, 1)
     features = dilate(config, seeds, im=im, laplacian=laplacian)
-    features = features.astype(np.int8)
-    remove_edge_touchers(features, config)
-    remove_false_positives(features, laplacian, config, im, seeds)
-    filter_close_neighbors(features, config)
     
-    if config.getboolean('also_id_negative', False) and not also_neg_override:
-        im = -raw_im
-        im[im < 0] = 0
-        negative_features, negative_seeds, _ = id_image(im, config, True)
-        feature_class = np.ones_like(features)
-        feature_class[negative_features != 0] = 2
-        if np.any(negative_features * features):
-            print("Warning: pixels included in both polarities")
-            feature_class[negative_features * features != 0] = 3
-        features = np.where(negative_features != 0, negative_features, features)
-        seeds += negative_seeds
-    else:
-        feature_class = np.ones_like(features)
+    if mask is not None:
+        features *= mask
     
-    return features, seeds, feature_class
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str,
-            help='Location of config file')
-    parser.add_argument('--data', type=str,
-            help='Directory containing data files')
-    parser.add_argument('--out', type=str,
-            help='Name of directory to hold output files. Data dir is prepended')
-    args = parser.parse_args()
+    struc = gen_kernel(config.getboolean('connect_diagonal', True))
+    labeled_feats, n_feat = scipy.ndimage.label(features, struc)
+    tracked_image.add_features_from_map(labeled_feats, im, seeds)
     
-    if args.config is None:
-        if args.data is None:
-            raise RuntimeError("Data dir or config file must be given")
-        else:
-            args.config = os.path.join(args.data, 'tracking.cfg')
-    
-    id_files(args.data, args.out, args.config)
+    remove_edge_touchers(labeled_feats, tracked_image)
+    remove_false_positives(
+        labeled_feats, laplacian, config, im, seeds, tracked_image)
+    filter_close_neighbors(labeled_feats, config, tracked_image)

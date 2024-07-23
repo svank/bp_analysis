@@ -3,7 +3,7 @@ import configparser
 import numpy as np
 import pytest
 
-from .. import abc_tracker
+from .. import abc_tracker, feature
 
 
 @pytest.fixture
@@ -60,7 +60,6 @@ def test_find_seeds(basic_config):
     
     np.testing.assert_array_equal(seeds, 0)
     
-    
     # Create an obvious seed
     image[30, 30] = 100
     
@@ -70,7 +69,6 @@ def test_find_seeds(basic_config):
     assert seeds[29, 29] == 1
     seeds[29, 29] = 0
     np.testing.assert_array_equal(seeds, 0)
-    
     
     # Adjust the n_sigma parameter to just less than it needs to be
     mean = np.mean(laplacian)
@@ -86,7 +84,6 @@ def test_find_seeds(basic_config):
     assert seeds[29, 29] == 1
     seeds[29, 29] = 0
     np.testing.assert_array_equal(seeds, 0)
-    
     
     # Adjust the n_sigma parameter to just above what it needs to be, so there
     # will be no seeds
@@ -113,7 +110,6 @@ def test_find_seeds_absolute_thresh(basic_config):
     
     np.testing.assert_array_equal(seeds, 0)
     
-    
     # Create a seed
     image[30, 30] = 2
     
@@ -139,7 +135,6 @@ def test_find_seeds_no_laplacian(basic_config):
         image, basic_config, print_stats=False)
     
     np.testing.assert_array_equal(seeds, 0)
-    
     
     # Create a seed
     image[30, 30] = 1.02
@@ -172,7 +167,6 @@ def test_dilate_laplacian(basic_config):
     np.testing.assert_array_equal(dilated_seeds[29:32, 29:32], 1)
     dilated_seeds[29:32, 29:32] = 0
     np.testing.assert_array_equal(dilated_seeds, 0)
-    
     
     # Add another round
     basic_config['dilation_rounds'] = '2'
@@ -253,21 +247,21 @@ def contour_image():
 
 def test_dilate_contour(basic_contour_config, contour_image):
     seeds = contour_image > 1
-
+    
     dilated_seeds = abc_tracker.dilate(
         basic_contour_config, seeds, im=contour_image)
     np.testing.assert_array_equal(dilated_seeds, contour_image >= 1)
-
+    
     # Add another round
     basic_contour_config['dilation_rounds'] = '2'
-
+    
     dilated_seeds = abc_tracker.dilate(
         basic_contour_config, seeds, im=contour_image)
     np.testing.assert_array_equal(dilated_seeds, contour_image >= .9)
-
+    
     # Pass that extra round explicitly
     basic_contour_config['dilation_rounds'] = '1'
-
+    
     dilated_seeds = abc_tracker.dilate(
         basic_contour_config, seeds, im=contour_image, n_rounds=2)
     np.testing.assert_array_equal(dilated_seeds, contour_image >= .9)
@@ -276,7 +270,7 @@ def test_dilate_contour(basic_contour_config, contour_image):
 def test_dilate_contour_threshold(basic_contour_config, contour_image):
     basic_contour_config['dilation_rounds'] = '2'
     basic_contour_config['contour_threshold'] = '.33'
-
+    
     seeds = contour_image > 1
     dilated_seeds = abc_tracker.dilate(
         basic_contour_config, seeds, im=contour_image)
@@ -287,14 +281,14 @@ def test_dilate_contour_require_downhill(
         basic_contour_config, contour_image):
     basic_contour_config['dilation_rounds'] = '2'
     basic_contour_config['contour_require_downhill'] = 'True'
-
+    
     seeds = contour_image > 1
     contour_image[contour_image == .9] = 1.1
     dilated_seeds = abc_tracker.dilate(
         basic_contour_config, seeds, im=contour_image)
     expected = (contour_image >= 1) * (contour_image != 1.1)
     np.testing.assert_array_equal(dilated_seeds, expected)
-
+    
     basic_contour_config['contour_require_downhill'] = 'False'
     dilated_seeds = abc_tracker.dilate(
         basic_contour_config, seeds, im=contour_image)
@@ -303,18 +297,18 @@ def test_dilate_contour_require_downhill(
 
 def test_dilate_contour_min_finding_scale(basic_contour_config, contour_image):
     basic_contour_config['contour_min_finding_scale'] = '2'
-
+    
     contour_image[3, 1] = -1
     contour_image[3, 0] = -2
     contour_image[4, 6:] = -.3
-
+    
     seeds = contour_image > 1
     dilated_seeds = abc_tracker.dilate(
         basic_contour_config, seeds, im=contour_image)
     expected = np.zeros_like(contour_image, dtype=bool)
     expected[2:6, 2:6] = contour_image[2:6, 2:6] > -.2
     np.testing.assert_array_equal(dilated_seeds, expected)
-
+    
     basic_contour_config['dilation_rounds'] = '2'
     basic_contour_config['contour_min_finding_scale'] = '1'
     dilated_seeds = abc_tracker.dilate(
@@ -328,17 +322,17 @@ def test_dilate_contour_max_intensity_range(
         basic_contour_config, contour_image):
     basic_contour_config['contour_max_intensity_range'] = '2'
     basic_contour_config['contour_max_intensity_mode'] = 'absolute'
-
+    
     contour_image[3, 4] = 10
-
+    
     seeds = contour_image > 1
     dilated_seeds = abc_tracker.dilate(
         basic_contour_config, seeds, im=contour_image)
     np.testing.assert_array_equal(dilated_seeds, contour_image >= 1)
-
+    
     basic_contour_config['contour_max_intensity_mode'] = 'relative'
     basic_contour_config['contour_max_intensity_range'] = '5'
-
+    
     dilated_seeds = abc_tracker.dilate(
         basic_contour_config, seeds, im=contour_image)
     np.testing.assert_array_equal(dilated_seeds, contour_image >= 1)
@@ -347,9 +341,9 @@ def test_dilate_contour_max_intensity_range(
 def test_dilate_contour_lower_thresh(
         basic_contour_config, contour_image):
     basic_contour_config['contour_lower_thresh'] = '-.001'
-
+    
     contour_image[3, 2] = -10
-
+    
     seeds = contour_image > 1
     dilated_seeds = abc_tracker.dilate(
         basic_contour_config, seeds, im=contour_image)
@@ -357,97 +351,76 @@ def test_dilate_contour_lower_thresh(
 
 
 def test_filter_close_neighbors(basic_config):
-    image = np.zeros((20, 20))
-    image[5:8, 5:8] = 1
-    image[10:12, 5:8] = 2
-
+    labeled_feats = np.zeros((20, 20), dtype=int)
+    labeled_feats[5:8, 5:8] = 1
+    labeled_feats[10:12, 5:8] = 2
+    tracked_image = feature.TrackedImage()
+    tracked_image.add_features_from_map(
+        labeled_feats, labeled_feats, labeled_feats)
+    
     basic_config['proximity_thresh'] = '2'
-
-    # Array is modified in place
-    result = image.copy()
-    abc_tracker.filter_close_neighbors(result, basic_config)
-    np.testing.assert_array_equal(result, image)
-
+    
+    abc_tracker.filter_close_neighbors(
+        labeled_feats, basic_config, tracked_image)
+    for feat in tracked_image.features:
+        assert feat.flag == abc_tracker.GOOD
+    
     basic_config['proximity_thresh'] = '3'
-
-    # Array is modified in place
-    result = image.copy()
-    abc_tracker.filter_close_neighbors(result, basic_config)
-    np.testing.assert_array_equal(result[image>0], abc_tracker.CLOSE_NEIGHBOR)
+    
+    abc_tracker.filter_close_neighbors(
+        labeled_feats, basic_config, tracked_image)
+    for feat in tracked_image.features:
+        assert feat.flag == abc_tracker.CLOSE_NEIGHBOR
 
 
 def test_remove_false_positives(basic_config):
-    features = np.zeros((20, 20))
-    features[5:10, 5:10] = 1
-    seeds = features > 0
-
+    labeled_feats = np.zeros((20, 20), dtype=int)
+    labeled_feats[5:10, 5:10] = 1
+    seeds = labeled_feats > 0
+    
     laplacian = np.zeros((20, 20))
     # Feature can grow along only one side
     laplacian[4:10, 5:10] = 1
     basic_config['dilation_method'] = 'laplacian'
     basic_config['fpos_thres'] = '.25'
-
-    # Array is modified in-place
-    result = features.copy()
-    abc_tracker.remove_false_positives(result, laplacian, basic_config,
-                                       result, seeds)
-    np.testing.assert_array_equal(features, result)
-
+    
+    tracked_image = feature.TrackedImage()
+    tracked_image.add_features_from_map(
+        labeled_feats, labeled_feats, labeled_feats)
+    
+    abc_tracker.remove_false_positives(labeled_feats, laplacian, basic_config,
+                                       labeled_feats, seeds, tracked_image)
+    for feat in tracked_image.features:
+        assert feat.flag == abc_tracker.GOOD
+    
     # Feature can grow along all sides
     laplacian[4:11, 4:11] = 1
-    result = features.copy()
-    abc_tracker.remove_false_positives(result, laplacian, basic_config,
-                                       result, seeds)
-    np.testing.assert_array_equal(result[features>0], abc_tracker.FALSE_POS)
+    abc_tracker.remove_false_positives(labeled_feats, laplacian, basic_config,
+                                       labeled_feats, seeds, tracked_image)
+    for feat in tracked_image.features:
+        assert feat.flag == abc_tracker.FALSE_POS
 
 
-def test_fully_process_one_image(basic_config, mocker):
+def test_fully_process_one_image(
+        basic_config, mocker, map_with_features, feature_details_for_map):
+    
     basic_config['seed_use_laplacian'] = "False"
     basic_config['seed_mode'] = "absolute"
     basic_config['seed_thresh'] = "1.9"
     basic_config['dilation_rounds'] = "8"
     basic_config['connect_diagonal'] = "True"
-
-    def add_feature(image, r, c, half_width):
-        x, y = np.meshgrid(
-            np.arange(2*half_width+1, dtype=float),
-            np.arange(2*half_width+1, dtype=float))
-        x -= half_width
-        y -= half_width
-        x /= x.max()
-        y /= y.max()
-        d = -x**2 + -y**2
-        d += -d.min()
-        image[r-half_width:r+half_width+1, c-half_width:c+half_width+1] = d
-
-    image = np.zeros((100, 100))
-    feature_details = [(30, 20, 5, abc_tracker.GOOD),
-                       (70, 22, 9, abc_tracker.GOOD),
-                       (10, 82, 2, abc_tracker.GOOD),
-                       (18, 82, 1, abc_tracker.GOOD),
-                       (10, 2, 2, abc_tracker.EDGE),
-                       (3, 10, 3, abc_tracker.EDGE),
-                       (10, 97, 2, abc_tracker.EDGE),
-                       (96, 10, 3, abc_tracker.EDGE),
-                       (50, 50, 2, abc_tracker.CLOSE_NEIGHBOR),
-                       (56, 50, 2, abc_tracker.CLOSE_NEIGHBOR),
-                       (50, 56, 2, abc_tracker.CLOSE_NEIGHBOR),
-                       (50, 62, 2, abc_tracker.CLOSE_NEIGHBOR),
-                       (80, 80, 12, abc_tracker.FALSE_POS),
-                       ]
-    for feature in feature_details:
-        add_feature(image, *feature[:-1])
-
-    mocker.patch("bp_analysis.abc_tracker.load_data", return_value=(1, image))
-
+    
+    mocker.patch("bp_analysis.abc_tracker.load_data",
+                 return_value=(1, map_with_features))
+    
     result = abc_tracker.fully_process_one_image("input_file", basic_config)
-    assert len(result.features) == len(feature_details)
+    assert len(result.features) == len(feature_details_for_map)
     assert result.config is basic_config
     assert result.time == 1
     assert result.source_file == "input_file"
-
+    
     details_by_brightest_px = dict()
-    for r, c, w, flag in feature_details:
+    for r, c, w, flag in feature_details_for_map:
         details_by_brightest_px[(r, c)] = (r, c, w, flag)
     for found_feature in result.features:
         r, c = found_feature.brightest_pixel
@@ -473,7 +446,7 @@ def test_load_data_trim(basic_config, mocker):
     fake_hdr = {"date-avg": "2022-01-01T01:01:01.1"}
     mocker.patch("bp_analysis.abc_tracker.fits.getdata",
                  return_value=(image, fake_hdr))
-
+    
     time, data = abc_tracker.load_data("file", basic_config)
     assert data.shape == (6, 6)
     np.testing.assert_array_equal(data, 0)

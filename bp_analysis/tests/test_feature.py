@@ -3,6 +3,7 @@ import copy
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
+import scipy.ndimage
 
 from .. import abc_tracker
 from ..feature import Feature, TrackedImage
@@ -92,3 +93,11 @@ def test_TrackedImage_plot_features(feature):
     tracked_image.plot_features(ax=ax)
 
     return fig
+
+
+def test_TrackedImage_feature_map(map_with_features):
+    map, _ = scipy.ndimage.label(map_with_features > 0)
+    
+    tracked_image = TrackedImage(source_shape=map.shape)
+    tracked_image.add_features_from_map(map, map, map)
+    np.testing.assert_array_equal(tracked_image.feature_map(), map)
