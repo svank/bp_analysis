@@ -1,12 +1,13 @@
 import copy
+from datetime import datetime
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import scipy.ndimage
 
-from .. import abc_tracker
-from ..feature import Feature, TrackedImage
+from ..feature import Feature, FeatureSequence, TrackedImage
+from .. import status
 
 
 @pytest.fixture
@@ -35,7 +36,7 @@ def feature():
         cutout=feature,
         data_cutout=data,
         seed_cutout=seeds,
-        flag=1,
+        flag=status.GOOD,
         feature_class=1,
     )
     return feature
@@ -46,9 +47,9 @@ def test_brightest_pixel(feature):
 
 
 def test_is_good(feature):
-    feature.flag = abc_tracker.GOOD
+    feature.flag = status.GOOD
     assert feature.is_good
-    feature.flag = abc_tracker.FALSE_POS
+    feature.flag = status.FALSE_POS
     assert not feature.is_good
 
 
@@ -66,6 +67,73 @@ def test_plot_onto_ids(feature):
     return fig
 
 
+def test_coord_set():
+    feature = np.array([
+        [0, 1],
+        [0, 1],
+    ])
+    feature = Feature(
+        id=1,
+        cutout_corner=(10, 15),
+        cutout=feature,
+        data_cutout=feature,
+        seed_cutout=feature,
+        flag=1,
+        feature_class=1,
+    )
+    set = feature.coord_set
+    assert len(set) == 2
+    assert (10, 16) in set
+    assert (11, 16) in set
+
+
+def test_indices():
+    feature = np.array([
+        [0, 1],
+        [0, 1],
+    ])
+    feature = Feature(
+        id=1,
+        cutout_corner=(10, 15),
+        cutout=feature,
+        data_cutout=feature,
+        seed_cutout=feature,
+        flag=1,
+        feature_class=1,
+    )
+    np.testing.assert_array_equal(feature.indices[0], np.array((10, 11)))
+    np.testing.assert_array_equal(feature.indices[1], np.array((16, 16)))
+
+
+def test_FeatureSequence_getitem(feature):
+    feature.id = 1
+    feature.time = datetime(1, 1, 1)
+    
+    feature2 = copy.deepcopy(feature)
+    feature2.id = 10
+    feature2.time = datetime(1, 1, 2)
+    
+    sequence = FeatureSequence()
+    sequence.add_feature(feature)
+    sequence.add_feature(feature2)
+    
+    assert sequence[1] is feature
+    assert sequence[datetime(1, 1, 1)] is feature
+    assert sequence[feature] is feature
+    
+    assert 1 in sequence
+    assert datetime(1, 1, 1) in sequence
+    assert feature in sequence
+    
+    assert sequence[10] is feature2
+    assert sequence[datetime(1, 1, 2)] is feature2
+    assert sequence[feature2] is feature2
+    
+    assert 10 in sequence
+    assert datetime(1, 1, 2) in sequence
+    assert feature2 in sequence
+
+
 @pytest.mark.mpl_image_compare
 def test_TrackedImage_plot_features(feature):
     feature2 = copy.deepcopy(feature)
@@ -75,15 +143,15 @@ def test_TrackedImage_plot_features(feature):
     feature2.cutout_corner = (22, 7)
 
     feature3 = copy.copy(feature)
-    feature3.flag = abc_tracker.FALSE_POS
+    feature3.flag = status.FALSE_POS
     feature3.cutout_corner = (30, 12)
 
     feature4 = copy.copy(feature)
-    feature4.flag = abc_tracker.CLOSE_NEIGHBOR
+    feature4.flag = status.CLOSE_NEIGHBOR
     feature4.cutout_corner = (10, 33)
 
     feature5 = copy.copy(feature2)
-    feature5.flag = abc_tracker.EDGE
+    feature5.flag = status.EDGE
     feature5.cutout_corner = (41, 42)
 
     tracked_image = TrackedImage("source_file", "time", config=None)

@@ -1,0 +1,10 @@
+GOOD = 'good'
+FALSE_POS = 'fpos'
+CLOSE_NEIGHBOR = 'neighbor'
+EDGE = 'edge'
+
+NORMAL = 'normal'
+MERGE = 'merge'
+SPLIT = 'split'
+FIRST_IMAGE = 'first_image'
+LAST_IMAGE = 'last_image'

@@ -3,7 +3,7 @@ import configparser
 import numpy as np
 import pytest
 
-from .. import abc_tracker, feature
+from .. import abc_tracker, feature, status
 
 
 @pytest.fixture
@@ -363,14 +363,14 @@ def test_filter_close_neighbors(basic_config):
     abc_tracker.filter_close_neighbors(
         labeled_feats, basic_config, tracked_image)
     for feat in tracked_image.features:
-        assert feat.flag == abc_tracker.GOOD
+        assert feat.flag == status.GOOD
     
     basic_config['proximity_thresh'] = '3'
     
     abc_tracker.filter_close_neighbors(
         labeled_feats, basic_config, tracked_image)
     for feat in tracked_image.features:
-        assert feat.flag == abc_tracker.CLOSE_NEIGHBOR
+        assert feat.flag == status.CLOSE_NEIGHBOR
 
 
 def test_remove_false_positives(basic_config):
@@ -391,14 +391,14 @@ def test_remove_false_positives(basic_config):
     abc_tracker.remove_false_positives(labeled_feats, laplacian, basic_config,
                                        labeled_feats, seeds, tracked_image)
     for feat in tracked_image.features:
-        assert feat.flag == abc_tracker.GOOD
+        assert feat.flag == status.GOOD
     
     # Feature can grow along all sides
     laplacian[4:11, 4:11] = 1
     abc_tracker.remove_false_positives(labeled_feats, laplacian, basic_config,
                                        labeled_feats, seeds, tracked_image)
     for feat in tracked_image.features:
-        assert feat.flag == abc_tracker.FALSE_POS
+        assert feat.flag == status.FALSE_POS
 
 
 def test_fully_process_one_image(
@@ -428,12 +428,12 @@ def test_fully_process_one_image(
         real_feature = details_by_brightest_px[(r, c)]
         width, height = found_feature.cutout.shape
         assert width == height
-        if found_feature.flag == abc_tracker.FALSE_POS:
+        if found_feature.flag == status.FALSE_POS:
             assert width // 2 < real_feature[2]
         else:
             assert width // 2 == real_feature[2]
         assert found_feature.flag == real_feature[3]
-        assert found_feature.is_good == (real_feature[3] == 1)
+        assert found_feature.is_good == (real_feature[3] == status.GOOD)
 
 
 def test_load_data_trim(basic_config, mocker):

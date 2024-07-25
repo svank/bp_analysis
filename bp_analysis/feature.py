@@ -1,14 +1,17 @@
+from datetime import datetime
+import functools
+
 import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.ndimage
 
-from . import abc_tracker, db_analysis
+from . import db_analysis, status
 
 
 class Feature:
     def __init__(self, id, cutout_corner, cutout, data_cutout, seed_cutout,
-                 flag, feature_class):
+                 flag=status.GOOD, feature_class=None):
         self.id = id
         self.cutout_corner = cutout_corner
         self.cutout = cutout.astype(bool, copy=False)
@@ -17,6 +20,8 @@ class Feature:
         self.flag = flag
         self.feature_class = feature_class
         self.image = None
+        self.sequence = None
+        self.time = None
     
     @property
     def brightest_pixel(self):
@@ -33,17 +38,28 @@ class Feature:
         rs += self.cutout_corner[0]
         cs += self.cutout_corner[1]
         return rs, cs
+
+    @property
+    @functools.cache
+    def coord_set(self):
+        rs, cs = self.indices
+        coord_set = set()
+        for r, c in zip(rs, cs):
+            coord_set.add((r, c))
+        return coord_set
     
     @property
     def is_good(self):
-        return self.flag == abc_tracker.GOOD
+        return self.flag == status.GOOD
     
     def plot_onto(self, ax, ids=False):
         r, c = np.nonzero(self.cutout)
         r += self.cutout_corner[0]
         c += self.cutout_corner[1]
-        color = {1: (.2, 1, .2, .8), -1: (1, .1, .1, .8),
-                 -2: (1, 1, 1, .8), -3: (.1, .1, 1, .8)}[self.flag]
+        color = {status.GOOD: (.2, 1, .2, .8),
+                 status.FALSE_POS: (1, .1, .1, .8),
+                 status.CLOSE_NEIGHBOR: (1, 1, 1, .8),
+                 status.EDGE: (.1, .1, 1, .8)}[self.flag]
         db_analysis.outline_BP(r, c, scale=1, line_color=color, ax=ax)
         if ids:
             plt.text(np.mean(c), np.mean(r), self.id, color=color,
@@ -56,6 +72,64 @@ class Feature:
             ax = plt.gca()
         self.plot_onto(ax, **kwargs)
         ax.set_aspect('equal')
+    
+    def overlaps(self, other: "Feature"):
+        if self.left > other.right or other.left > self.right:
+            return False
+        if self.top > other.bottom or other.top > self.bottom:
+            return False
+        return not self.coord_set.isdisjoint(other.coord_set)
+    
+    @property
+    def left(self):
+        return self.cutout_corner[1]
+    
+    @property
+    def right(self):
+        return self.cutout_corner[1] + self.cutout.shape[1]
+    
+    @property
+    def top(self):
+        return self.cutout_corner[0]
+    
+    @property
+    def bottom(self):
+        return self.cutout_corner[0] + self.cutout.shape[0]
+
+
+class FeatureSequence:
+    def __init__(self):
+        self.id = id = None
+        self.features = []
+        self.origin = status.NORMAL
+        self.fate = status.NORMAL
+        self.origin_sequences = []
+        self.fate_sequences = []
+    
+    def __getitem__(self, item):
+        for feature in self.features:
+            if feature is item:
+                return feature
+            if feature.id == item:
+                return feature
+            if isinstance(item, datetime) and feature.time == item:
+                return feature
+        raise KeyError("Feature not found")
+    
+    def __contains__(self, item):
+        try:
+            self[item]
+            return True
+        except KeyError:
+            return False
+    
+    def add_feature(self, feature):
+        self.features.append(feature)
+        feature.sequence = self
+    
+    def remove_feature(self, feature):
+        self.features.remove(feature)
+        feature.sequence = None
 
 
 class TrackedImage:
@@ -69,6 +143,7 @@ class TrackedImage:
     def add_features(self, *features):
         for feature in features:
             feature.image = self
+            feature.time = self.time
             self.features.append(feature)
     
     def add_features_from_map(self, feature_map, data, seeds, classes=None):
@@ -78,7 +153,7 @@ class TrackedImage:
             feature_cutout = feature_map[region] == id
             data_cutout = data[region].copy()
             seed_cutout = np.where(feature_cutout, seeds[region], 0)
-            feature_flag = abc_tracker.GOOD
+            feature_flag = status.GOOD
             if classes:
                 feature_class = classes[region][feature_cutout][0]
             else:

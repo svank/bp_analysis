@@ -18,13 +18,8 @@ import scipy.signal
 from tqdm.contrib.concurrent import process_map
 
 from .feature import TrackedImage
+from . import status
 from .tracking_utils import gen_coord_map, gen_kernel
-
-
-GOOD = 1
-FALSE_POS = -1
-CLOSE_NEIGHBOR = -2
-EDGE = -3
 
 
 def calc_laplacian(image, kernel=None):
@@ -249,7 +244,7 @@ def remove_edge_touchers(labeled_feats, tracked_image):
         labeled_feats[:, -2:].flatten()))
     ids = np.unique(edges[edges != 0])
     for id in ids:
-        tracked_image[id].flag = EDGE
+        tracked_image[id].flag = status.EDGE
 
 
 def remove_false_positives(labeled_feats, laplacian, config, im, seeds,
@@ -306,7 +301,7 @@ def remove_false_positives(labeled_feats, laplacian, config, im, seeds,
         
         # Mark features that don't meet the threshold
         if gained_pix / possible_pix > config.getfloat('fpos_thres', 0.2):
-            feature.flag = FALSE_POS
+            feature.flag = status.FALSE_POS
 
 
 def filter_close_neighbors(labeled_feats, config, tracked_image):
@@ -317,7 +312,7 @@ def filter_close_neighbors(labeled_feats, config, tracked_image):
     closeness = config.getint('proximity_thresh', 4)
     # Iterate over all features in image
     for feature in tracked_image.features:
-        if feature.flag == CLOSE_NEIGHBOR:
+        if feature.flag == status.CLOSE_NEIGHBOR:
             # This feature was already flagged as too close to one of its
             # neighbors
             continue
@@ -350,9 +345,9 @@ def filter_close_neighbors(labeled_feats, config, tracked_image):
         for neighbor in neighbors:
             # This feature is too close to another feature,
             # so we flag it
-            tracked_image[neighbor].flag = CLOSE_NEIGHBOR
+            tracked_image[neighbor].flag = status.CLOSE_NEIGHBOR
         if len(neighbors):
-            tracked_image[feature.id].flag = CLOSE_NEIGHBOR
+            tracked_image[feature.id].flag = status.CLOSE_NEIGHBOR
 
 
 def id_files(config_file, dir=None, silent=False, procs=None):
