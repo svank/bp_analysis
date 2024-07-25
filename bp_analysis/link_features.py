@@ -23,7 +23,6 @@ def link_features(tracked_images: list[TrackedImage]):
                 overlap = overlaps[0]
                 if feature.time in overlap.sequence:
                     # This is a split!
-                    overlap.sequence.fate = status.SPLIT
                     sibling = overlap.sequence[feature.time]
                     sibling_sequence = FeatureSequence()
                     sibling_sequence.add_feature(sibling)
@@ -36,14 +35,23 @@ def link_features(tracked_images: list[TrackedImage]):
                     overlap.sequence.remove_feature(sibling)
                     overlap.sequence.fate_sequences.extend(
                         [sibling_sequence, sequence])
+                    overlap.sequence.fate = status.SPLIT
                     
                     for seq in (sequence, sibling_sequence):
                         seq.origin = status.SPLIT
                         seq.origin_sequences.append(overlap.sequence)
+                elif overlap.sequence.fate == status.SPLIT:
+                    # This is a multi-split!
+                    sequence = FeatureSequence()
+                    sequence.add_feature(feature)
+                    feature_sequences.append(sequence)
+                    sequence.origin = status.SPLIT
+                    overlap.sequence.fate_sequences.append(sequence)
+                    sequence.origin_sequences.append(overlap.sequence)
                 else:
                     sequence = overlaps[0].sequence
                     sequence.add_feature(feature)
-            elif len(overlaps) == 2:
+            elif len(overlaps) >= 2:
                 # This is a merger
                 sequence = FeatureSequence()
                 sequence.add_feature(feature)

@@ -106,6 +106,45 @@ def test_split():
         assert seq.id == i + 1
 
 
+def test_three_way_split():
+    img = np.ones((2, 2))
+    feature1 = Feature(1, (5, 10), img, img, img)
+    feature2 = Feature(2, (6, 11), img, img, img)
+    feature3 = Feature(3, (4, 9), img, img, img)
+    feature4 = Feature(4, (6, 9), img, img, img)
+    
+    tracked_image1 = TrackedImage(time=datetime(1, 1, 1))
+    tracked_image1.add_features(feature1)
+    tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
+    tracked_image2.add_features(feature2, feature3, feature4)
+    
+    tracked_sequence = link_features.link_features(
+        [tracked_image1, tracked_image2])
+    
+    sequences = tracked_sequence.sequences
+    assert len(sequences) == 4
+    assert len(sequences[0].features) == 1
+    assert len(sequences[1].features) == 1
+    assert len(sequences[2].features) == 1
+    assert len(sequences[3].features) == 1
+    
+    assert sequences[0].origin == status.FIRST_IMAGE
+    assert sequences[0].fate == status.SPLIT
+    assert feature1 in sequences[0]
+    assert sequences[1] in sequences[0].fate_sequences
+    assert sequences[2] in sequences[0].fate_sequences
+    assert sequences[3] in sequences[0].fate_sequences
+    
+    for seq, feat in zip(sequences[1:], [feature2, feature3, feature4]):
+        assert seq.origin == status.SPLIT
+        assert seq.fate == status.LAST_IMAGE
+        assert feat in seq.features
+        assert sequences[0] in seq.origin_sequences
+    
+    for i, seq in enumerate(sequences):
+        assert seq.id == i + 1
+
+
 def test_merge():
     img = np.ones((2, 2))
     feature1 = Feature(1, (5, 10), img, img, img)
@@ -137,6 +176,45 @@ def test_merge():
     assert sequences[0] in sequences[2].origin_sequences
     assert sequences[1] in sequences[2].origin_sequences
     assert feature1 in sequences[2]
+    
+    for i, seq in enumerate(sequences):
+        assert seq.id == i + 1
+
+
+def test_three_way_merge():
+    img = np.ones((2, 2))
+    feature1 = Feature(1, (5, 10), img, img, img)
+    feature2 = Feature(2, (6, 11), img, img, img)
+    feature3 = Feature(3, (4, 9), img, img, img)
+    feature4 = Feature(4, (6, 9), img, img, img)
+    
+    tracked_image1 = TrackedImage(time=datetime(1, 1, 1))
+    tracked_image1.add_features(feature2, feature3, feature4)
+    tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
+    tracked_image2.add_features(feature1)
+    
+    tracked_sequence = link_features.link_features(
+        [tracked_image1, tracked_image2])
+    
+    sequences = tracked_sequence.sequences
+    assert len(sequences) == 4
+    assert len(sequences[0].features) == 1
+    assert len(sequences[1].features) == 1
+    assert len(sequences[2].features) == 1
+    assert len(sequences[3].features) == 1
+    
+    for seq, feat in zip(sequences[:2], [feature2, feature3, feature4]):
+        assert seq.origin == status.FIRST_IMAGE
+        assert seq.fate == status.MERGE
+        assert feat in seq.features
+        assert sequences[3] in seq.fate_sequences
+    
+    assert sequences[3].origin == status.MERGE
+    assert sequences[3].fate == status.LAST_IMAGE
+    assert sequences[0] in sequences[3].origin_sequences
+    assert sequences[1] in sequences[3].origin_sequences
+    assert sequences[2] in sequences[3].origin_sequences
+    assert feature1 in sequences[3]
     
     for i, seq in enumerate(sequences):
         assert seq.id == i + 1
