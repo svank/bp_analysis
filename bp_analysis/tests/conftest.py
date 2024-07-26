@@ -9,7 +9,7 @@ def feature_details_for_map():
     feature_details = [(30, 20, 5, status.GOOD),
                        (70, 22, 9, status.GOOD),
                        (10, 82, 2, status.GOOD),
-                       (18, 82, 1, status.GOOD),
+                       (18, 82, 1, status.TOO_SMALL),
                        (10, 2, 2, status.EDGE),
                        (3, 10, 3, status.EDGE),
                        (10, 97, 2, status.EDGE),

@@ -350,6 +350,35 @@ def filter_close_neighbors(labeled_feats, config, tracked_image):
             tracked_image[feature.id].flag = status.CLOSE_NEIGHBOR
 
 
+def filter_size(tracked_image: TrackedImage, config):
+    min_size = config.getint('min_size', 4)
+    max_size = config.getint('max_size', 110)
+    max_diagonal = config.getfloat('max_diagonal', 20)
+    
+    for feature in tracked_image.features:
+        if not feature.is_good:
+            continue
+        rs, cs = feature.indices
+        
+        if min_size > 0 and rs.size < min_size:
+            feature.flag = status.TOO_SMALL
+            continue
+        if max_size > 0 and rs.size > max_size:
+            feature.flag = status.TOO_BIG
+            continue
+        
+        if max_diagonal is not None:
+            rmin = np.min(rs)
+            cmin = np.min(cs)
+            rmax = np.max(rs)
+            cmax = np.max(cs)
+            
+            diagonal = np.sqrt((rmax - rmin) ** 2 + (cmax - cmin) ** 2)
+            if max_diagonal > 0 and diagonal > max_diagonal:
+                feature.flag = status.TOO_BIG
+                continue
+
+
 def id_files(config_file, dir=None, silent=False, procs=None):
     if type(config_file) == configparser.ConfigParser:
         config = config_file
@@ -441,3 +470,4 @@ def id_image(im, config, tracked_image, mask=None):
     remove_false_positives(
         labeled_feats, laplacian, config, im, seeds, tracked_image)
     filter_close_neighbors(labeled_feats, config, tracked_image)
+    filter_size(tracked_image, config)

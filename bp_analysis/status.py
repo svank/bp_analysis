@@ -2,6 +2,8 @@ GOOD = 'good'
 FALSE_POS = 'fpos'
 CLOSE_NEIGHBOR = 'neighbor'
 EDGE = 'edge'
+TOO_SMALL = 'too small'
+TOO_BIG = 'too big'
 
 NORMAL = 'normal'
 MERGE = 'merge'

@@ -26,8 +26,8 @@ def basic_config():
         seed_use_laplacian = True
         seed_mode = relative
 
-        min_size = 8
-        max_size = 200
+        min_size = 10
+        max_size = 1000
         max_diagonal = 30
         max_size_change_pct = 50
         max_size_change_px = 10
@@ -399,6 +399,70 @@ def test_remove_false_positives(basic_config):
                                        labeled_feats, seeds, tracked_image)
     for feat in tracked_image.features:
         assert feat.flag == status.FALSE_POS
+
+
+def test_filter_size(basic_config):
+    labeled_feats = np.zeros((20, 20), dtype=int)
+    
+    # Too small by one pixel
+    labeled_feats[1, 1] = 1
+    
+    # Too big by one pixel
+    labeled_feats[5:10, 5:10] = 2
+    
+    basic_config['min_size'] = '2'
+    basic_config['max_size'] = '24'
+    
+    tracked_image = feature.TrackedImage()
+    tracked_image.add_features_from_map(
+        labeled_feats, labeled_feats, labeled_feats)
+    
+    abc_tracker.filter_size(tracked_image, basic_config)
+    
+    assert len(tracked_image.features) == 2
+    assert tracked_image.features[0].flag == status.TOO_SMALL
+    assert tracked_image.features[1].flag == status.TOO_BIG
+    
+    labeled_feats = np.zeros((20, 20), dtype=int)
+    
+    # Minimum allowed size
+    labeled_feats[1, 1:3] = 1
+    
+    # Maximum allowed size
+    labeled_feats[5:10, 5:10] = 2
+    labeled_feats[5, 5] = 0
+    
+    tracked_image = feature.TrackedImage()
+    tracked_image.add_features_from_map(
+        labeled_feats, labeled_feats, labeled_feats)
+    
+    abc_tracker.filter_size(tracked_image, basic_config)
+    
+    assert len(tracked_image.features) == 2
+    assert tracked_image.features[0].flag == status.GOOD
+    assert tracked_image.features[1].flag == status.GOOD
+
+
+def test_filter_size_diagonal(basic_config):
+    labeled_feats = np.zeros((20, 20), dtype=int)
+    
+    # OK
+    labeled_feats[1:5, 1:5] = 1
+    
+    # Too big
+    labeled_feats[10:15, 10:15] = 2
+    
+    basic_config['max_diagonal'] = '4.5'
+    
+    tracked_image = feature.TrackedImage()
+    tracked_image.add_features_from_map(
+        labeled_feats, labeled_feats, labeled_feats)
+    
+    abc_tracker.filter_size(tracked_image, basic_config)
+    
+    assert len(tracked_image.features) == 2
+    assert tracked_image.features[0].flag == status.GOOD
+    assert tracked_image.features[1].flag == status.TOO_BIG
 
 
 def test_fully_process_one_image(
