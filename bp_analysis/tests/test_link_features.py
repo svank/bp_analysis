@@ -218,3 +218,119 @@ def test_three_way_merge():
     
     for i, seq in enumerate(sequences):
         assert seq.id == i + 1
+
+
+def test_split_becomes_complex():
+    img = np.ones((2, 2))
+    # Parent
+    parent1 = Feature(1, (5, 10), img, img, img)
+    # Splits into these two
+    split1 = Feature(2, (6, 11), img, img, img)
+    split2 = Feature(3, (6, 9), img, img, img)
+    
+    # Another parent
+    parent2 = Feature(4, (3, 9), img, img, img)
+    # This one is a "simple" descendant of the second parent
+    simple1 = Feature(6, (2, 9), img, img, img)
+    # This one is a merge from both parents
+    merge = Feature(5, (4, 9), img, img, img)
+    # This one is another "simple" descendant of the second parent
+    simple2 = Feature(6, (2, 9), img, img, img)
+    
+    tracked_image1 = TrackedImage(time=datetime(1, 1, 1))
+    tracked_image1.add_features(parent1, parent2)
+    tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
+    tracked_image2.add_features(split1, split2, simple1, merge, simple2)
+    
+    tracked_sequence = link_features.link_features(
+        [tracked_image1, tracked_image2])
+    
+    sequences = tracked_sequence.sequences
+    assert len(sequences) == 7
+    for seq in sequences:
+        assert len(seq) == 1
+    
+    for sequence, feature in zip(sequences[:2], [parent1, parent2]):
+        assert sequence.origin == status.FIRST_IMAGE
+        assert sequence.fate == status.COMPLEX
+        assert feature in sequence
+    
+    assert split1.sequence in parent1.sequence.fate_sequences
+    assert split2.sequence in parent1.sequence.fate_sequences
+    assert merge.sequence in parent1.sequence.fate_sequences
+    
+    assert merge.sequence in parent2.sequence.fate_sequences
+    assert simple1.sequence in parent2.sequence.fate_sequences
+    assert simple2.sequence in parent2.sequence.fate_sequences
+    
+    for seq, feat in zip(sequences[2:], [split1, split2, merge]):
+        assert seq.origin == status.COMPLEX
+        assert seq.fate == status.LAST_IMAGE
+        assert feat in seq
+        assert parent1.sequence in seq.origin_sequences
+    
+    assert parent2.sequence in merge.sequence.origin_sequences
+    
+    for feature in (simple1, simple2):
+        assert feature.sequence.origin == status.COMPLEX
+        assert feature.sequence.fate == status.LAST_IMAGE
+        assert parent2.sequence in feature.sequence.origin_sequences
+    
+    for i, seq in enumerate(sequences):
+        assert seq.id == i + 1
+
+
+def test_simple_becomes_complex():
+    img = np.ones((2, 2))
+    # Parent
+    parent1 = Feature(1, (5, 10), img, img, img)
+    # Simple descendant
+    simple1 = Feature(2, (6, 11), img, img, img)
+    
+    # Another parent
+    parent2 = Feature(4, (3, 9), img, img, img)
+    # This one is a simple descendant of the second parent
+    simple2 = Feature(6, (2, 9), img, img, img)
+    # This one is a merge from both parents
+    merge = Feature(5, (4, 9), img, img, img)
+    # This one is a simple descendant of the second parent
+    simple3 = Feature(6, (2, 9), img, img, img)
+    
+    tracked_image1 = TrackedImage(time=datetime(1, 1, 1))
+    tracked_image1.add_features(parent1, parent2)
+    tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
+    tracked_image2.add_features(simple1, simple2, merge, simple3)
+    
+    tracked_sequence = link_features.link_features(
+        [tracked_image1, tracked_image2])
+    
+    sequences = tracked_sequence.sequences
+    assert len(sequences) == 6
+    for seq in sequences:
+        assert len(seq) == 1
+    
+    for sequence, feature in zip(sequences[:2], [parent1, parent2]):
+        assert sequence.origin == status.FIRST_IMAGE
+        assert sequence.fate == status.COMPLEX
+        assert feature in sequence
+    
+    assert simple1.sequence in parent1.sequence.fate_sequences
+    assert merge.sequence in parent1.sequence.fate_sequences
+    
+    assert merge.sequence in parent2.sequence.fate_sequences
+    assert simple2.sequence in parent2.sequence.fate_sequences
+    assert simple3.sequence in parent2.sequence.fate_sequences
+    
+    for seq, feat in zip(sequences[2:], [merge, simple1, simple2, simple3]):
+        assert seq.origin == status.COMPLEX
+        assert seq.fate == status.LAST_IMAGE
+        assert feat in seq
+    
+    assert parent1.sequence in simple1.sequence.origin_sequences
+    assert parent1.sequence in merge.sequence.origin_sequences
+    assert parent2.sequence in merge.sequence.origin_sequences
+    assert parent2.sequence in simple2.sequence.origin_sequences
+    assert parent2.sequence in simple3.sequence.origin_sequences
+    
+    for i, seq in enumerate(sequences):
+        assert seq.id == i + 1
