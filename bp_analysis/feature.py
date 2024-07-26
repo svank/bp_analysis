@@ -20,7 +20,7 @@ class Feature:
         self.flag = flag
         self.feature_class = feature_class
         self.image = None
-        self.sequence = None
+        self.sequence: FeatureSequence = None
         self.time = None
     
     @property
@@ -95,16 +95,19 @@ class Feature:
     @property
     def bottom(self):
         return self.cutout_corner[0] + self.cutout.shape[0]
+    
+    def __repr__(self):
+        return f"<Feature {self.id}>"
 
 
 class FeatureSequence:
     def __init__(self):
-        self.id = id = None
-        self.features = []
+        self.id = None
+        self.features: list[Feature] = []
         self.origin = status.NORMAL
         self.fate = status.NORMAL
-        self.origin_sequences = []
-        self.fate_sequences = []
+        self.origin_sequences: list[FeatureSequence] = []
+        self.fate_sequences: list[FeatureSequence] = []
     
     def __getitem__(self, item):
         for feature in self.features:
@@ -123,6 +126,9 @@ class FeatureSequence:
         except KeyError:
             return False
     
+    def __len__(self):
+        return len(self.features)
+    
     def add_feature(self, feature):
         self.features.append(feature)
         feature.sequence = self
@@ -130,6 +136,9 @@ class FeatureSequence:
     def remove_feature(self, feature):
         self.features.remove(feature)
         feature.sequence = None
+    
+    def __repr__(self):
+        return f"<FeatureSequence {self.id}>"
 
 
 class TrackedImage:

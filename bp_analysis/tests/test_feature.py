@@ -134,6 +134,15 @@ def test_FeatureSequence_getitem(feature):
     assert feature2 in sequence
 
 
+def test_FeatureSequence_len(feature):
+    sequence = FeatureSequence()
+    assert len(sequence) == 0
+    sequence.add_feature(feature)
+    assert len(sequence) == 1
+    sequence.add_feature(feature)
+    assert len(sequence) == 2
+
+
 @pytest.mark.mpl_image_compare
 def test_TrackedImage_plot_features(feature):
     feature2 = copy.deepcopy(feature)

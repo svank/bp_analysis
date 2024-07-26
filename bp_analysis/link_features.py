@@ -4,7 +4,7 @@ from .feature import *
 from . import status
 
 
-def link_features(tracked_images: list[TrackedImage]):
+def link_features(tracked_images: list[TrackedImage]) -> "TrackedSequence":
     prev_frame_features = []
     feature_sequences = []
     to_mark_as_complex = []
@@ -82,7 +82,7 @@ def link_features(tracked_images: list[TrackedImage]):
 
 class TrackedSequence:
     def __init__(self):
-        self.sequences = []
+        self.sequences: list[FeatureSequence] = []
     
     def add_sequences(self, *sequences):
         for sequence in sequences:
