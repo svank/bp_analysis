@@ -380,7 +380,7 @@ def filter_size(tracked_image: TrackedImage, config):
 
 
 def id_files(config_file, dir=None, silent=False, procs=None):
-    if type(config_file) == configparser.ConfigParser:
+    if isinstance(config_file, configparser.ConfigParser):
         config = config_file
     else:
         config = configparser.ConfigParser()

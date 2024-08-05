@@ -1,10 +1,20 @@
+import configparser
 import numpy as np
 
 from .feature import *
 from .status import Event
 
 
-def link_features(tracked_images: list[TrackedImage]) -> "TrackedSequence":
+def link_features(tracked_images: list[TrackedImage],
+                  config_file) -> "TrackedSequence":
+    if isinstance(config_file, configparser.SectionProxy):
+        config = config_file
+    else:
+        config = configparser.ConfigParser()
+        config.read(config_file)
+        config = config['main']
+    max_size_change_pct = config.getfloat('max_size_change_pct', 50)
+    max_size_change_px = config.getint('max_size_change_px', 10)
     
     #
     ## Stage 1: Linking features together
@@ -119,27 +129,48 @@ def link_features(tracked_images: list[TrackedImage]) -> "TrackedSequence":
     
     i = 0
     while True:
+        # Doing this instead of a for loop because we'll be adding new
+        # sequences to the list as we go
         if i >= len(feature_sequences):
             break
         
         sequence = feature_sequences[i]
         sequence.flag = sequence.features[0].flag
+        bad_size_pct = False
+        bad_size_px = False
         for j, feature in enumerate(sequence.features):
-            if feature.flag != sequence.flag:
+            if j > 0:
+                prev_size = len(sequence.features[j-1].indices[0])
+                cur_size = len(feature.indices[0])
+                dsize = np.abs(cur_size - prev_size)
+                bad_size_px = dsize > max_size_change_px
+                bad_size_pct = dsize / prev_size * 100 > max_size_change_pct
+            if feature.flag != sequence.flag or bad_size_pct or bad_size_px:
                 new_sequence = FeatureSequence()
                 new_sequence.add_features(*sequence.features[j:])
                 sequence.features = sequence.features[:j]
                 
                 new_sequence.fate = sequence.fate
                 new_sequence.fate_sequences = sequence.fate_sequences
-                new_sequence.origin = sequence.flag
                 new_sequence.origin_sequences.append(sequence)
+                if bad_size_pct:
+                    new_sequence.origin = Event.SIZE_CHANGE_PCT
+                elif bad_size_px:
+                    new_sequence.origin = Event.SIZE_CHANGE_PX
+                else:
+                    new_sequence.origin = sequence.flag
                 
                 for seq in new_sequence.fate_sequences:
                     seq.origin_sequences.remove(sequence)
                     seq.origin_sequences.append(new_sequence)
                 
-                sequence.fate = feature.flag
+                if bad_size_pct:
+                    sequence.fate = Event.SIZE_CHANGE_PCT
+                elif bad_size_px:
+                    sequence.fate = Event.SIZE_CHANGE_PX
+                else:
+                    sequence.fate = feature.flag
+                
                 sequence.fate_sequences = [new_sequence]
                 feature_sequences.insert(i+1, new_sequence)
                 break

@@ -3,7 +3,7 @@ from ..feature import *
 from ..status import Event, Flag
 
 
-def test_overlapping():
+def test_overlapping(basic_config):
     img = np.ones((2, 2))
     feature1 = Feature(1, (5, 10), img, img, img)
     feature2 = Feature(2, (6, 11), img, img, img)
@@ -17,7 +17,8 @@ def test_overlapping():
     tracked_image3.add_features(feature3)
     
     tracked_sequence = link_features.link_features(
-        [tracked_image1, tracked_image2, tracked_image3])
+        [tracked_image1, tracked_image2, tracked_image3],
+        basic_config)
     
     sequences = tracked_sequence.sequences
     assert all(s.flag == Flag.GOOD for s in sequences)
@@ -34,7 +35,7 @@ def test_overlapping():
     assert sequence.id == 1
 
 
-def test_non_overlapping():
+def test_non_overlapping(basic_config):
     img = np.ones((2, 2))
     feature1 = Feature(1, (5, 10), img, img, img)
     feature2 = Feature(2, (7, 12), img, img, img)
@@ -48,7 +49,8 @@ def test_non_overlapping():
     tracked_image3.add_features(feature3)
     
     tracked_sequence = link_features.link_features(
-        [tracked_image1, tracked_image2, tracked_image3])
+        [tracked_image1, tracked_image2, tracked_image3],
+        basic_config)
     
     sequences = tracked_sequence.sequences
     assert all(s.flag == Flag.GOOD for s in sequences)
@@ -71,7 +73,7 @@ def test_non_overlapping():
         assert seq.id == i + 1
 
 
-def test_split():
+def test_split(basic_config):
     img = np.ones((2, 2))
     feature1 = Feature(1, (5, 10), img, img, img)
     feature2 = Feature(2, (6, 11), img, img, img)
@@ -83,7 +85,8 @@ def test_split():
     tracked_image2.add_features(feature2, feature3)
     
     tracked_sequence = link_features.link_features(
-        [tracked_image1, tracked_image2])
+        [tracked_image1, tracked_image2],
+        basic_config)
     
     sequences = tracked_sequence.sequences
     assert all(s.flag == Flag.GOOD for s in sequences)
@@ -108,7 +111,7 @@ def test_split():
         assert seq.id == i + 1
 
 
-def test_three_way_split():
+def test_three_way_split(basic_config):
     img = np.ones((2, 2))
     feature1 = Feature(1, (5, 10), img, img, img)
     feature2 = Feature(2, (6, 11), img, img, img)
@@ -121,7 +124,8 @@ def test_three_way_split():
     tracked_image2.add_features(feature2, feature3, feature4)
     
     tracked_sequence = link_features.link_features(
-        [tracked_image1, tracked_image2])
+        [tracked_image1, tracked_image2],
+        basic_config)
     
     sequences = tracked_sequence.sequences
     assert all(s.flag == Flag.GOOD for s in sequences)
@@ -148,7 +152,7 @@ def test_three_way_split():
         assert seq.id == i + 1
 
 
-def test_merge():
+def test_merge(basic_config):
     img = np.ones((2, 2))
     feature1 = Feature(1, (5, 10), img, img, img)
     feature2 = Feature(2, (6, 11), img, img, img)
@@ -160,7 +164,8 @@ def test_merge():
     tracked_image2.add_features(feature1)
     
     tracked_sequence = link_features.link_features(
-        [tracked_image1, tracked_image2])
+        [tracked_image1, tracked_image2],
+        basic_config)
     
     sequences = tracked_sequence.sequences
     assert all(s.flag == Flag.GOOD for s in sequences)
@@ -185,7 +190,7 @@ def test_merge():
         assert seq.id == i + 1
 
 
-def test_three_way_merge():
+def test_three_way_merge(basic_config):
     img = np.ones((2, 2))
     feature1 = Feature(1, (5, 10), img, img, img)
     feature2 = Feature(2, (6, 11), img, img, img)
@@ -198,7 +203,8 @@ def test_three_way_merge():
     tracked_image2.add_features(feature1)
     
     tracked_sequence = link_features.link_features(
-        [tracked_image1, tracked_image2])
+        [tracked_image1, tracked_image2],
+        basic_config)
     
     sequences = tracked_sequence.sequences
     assert all(s.flag == Flag.GOOD for s in sequences)
@@ -225,7 +231,7 @@ def test_three_way_merge():
         assert seq.id == i + 1
 
 
-def test_split_and_simple_becomes_complex():
+def test_split_and_simple_becomes_complex(basic_config):
     img = np.ones((2, 2))
     # Parent
     parent1 = Feature(1, (5, 10), img, img, img)
@@ -248,7 +254,8 @@ def test_split_and_simple_becomes_complex():
     tracked_image2.add_features(split1, split2, simple1, merge, simple2)
     
     tracked_sequence = link_features.link_features(
-        [tracked_image1, tracked_image2])
+        [tracked_image1, tracked_image2],
+        basic_config)
     
     sequences = tracked_sequence.sequences
     assert all(s.flag == Flag.GOOD for s in sequences)
@@ -286,7 +293,7 @@ def test_split_and_simple_becomes_complex():
         assert seq.id == i + 1
 
 
-def test_split_becomes_complex():
+def test_split_becomes_complex(basic_config):
     img = np.ones((2, 2))
     # Parent
     parent1 = Feature(1, (5, 10), img, img, img)
@@ -305,7 +312,8 @@ def test_split_becomes_complex():
     tracked_image2.add_features(split1, split2, merge)
     
     tracked_sequence = link_features.link_features(
-        [tracked_image1, tracked_image2])
+        [tracked_image1, tracked_image2],
+        basic_config)
     
     sequences = tracked_sequence.sequences
     assert all(s.flag == Flag.GOOD for s in sequences)
@@ -336,7 +344,7 @@ def test_split_becomes_complex():
         assert seq.id == i + 1
 
 
-def test_simple_becomes_complex():
+def test_simple_becomes_complex(basic_config):
     img = np.ones((2, 2))
     # Parent
     parent1 = Feature(1, (5, 10), img, img, img)
@@ -358,7 +366,8 @@ def test_simple_becomes_complex():
     tracked_image2.add_features(simple1, simple2, merge, simple3)
     
     tracked_sequence = link_features.link_features(
-        [tracked_image1, tracked_image2])
+        [tracked_image1, tracked_image2],
+        basic_config)
     
     sequences = tracked_sequence.sequences
     assert all(s.flag == Flag.GOOD for s in sequences)
@@ -393,7 +402,7 @@ def test_simple_becomes_complex():
         assert seq.id == i + 1
 
 
-def test_merge_becomes_complex():
+def test_merge_becomes_complex(basic_config):
     img = np.ones((2, 2))
     parent1 = Feature(1, (5, 10), img, img, img)
     parent2 = Feature(2, (6, 11), img, img, img)
@@ -407,7 +416,8 @@ def test_merge_becomes_complex():
     tracked_image2.add_features(child1, child2)
     
     tracked_sequence = link_features.link_features(
-        [tracked_image1, tracked_image2])
+        [tracked_image1, tracked_image2],
+        basic_config)
     
     sequences = tracked_sequence.sequences
     assert all(s.flag == Flag.GOOD for s in sequences)
@@ -426,7 +436,7 @@ def test_merge_becomes_complex():
         assert feature.sequence.origin_sequences == sequences[:2]
 
 
-def test_sequence_break_on_flag_change_simple_sequence():
+def test_sequence_break_on_flag_change_simple_sequence(basic_config):
     img = np.ones((2, 2))
     feature1 = Feature(1, (5, 10), img, img, img)
     feature2 = Feature(2, (5, 10), img, img, img)
@@ -450,7 +460,8 @@ def test_sequence_break_on_flag_change_simple_sequence():
 
     tracked_sequence = link_features.link_features(
         [tracked_image1, tracked_image2, tracked_image3, tracked_image4,
-         tracked_image5])
+         tracked_image5],
+        basic_config)
     
     sequences = tracked_sequence.sequences
     assert len(sequences) == 3
@@ -479,7 +490,7 @@ def test_sequence_break_on_flag_change_simple_sequence():
     assert sequences[2].fate == Event.LAST_IMAGE
 
 
-def test_sequence_break_on_flag_change_merge():
+def test_sequence_break_on_flag_change_merge(basic_config):
     img = np.ones((2, 2))
     parent1A = Feature(1, (7, 12), img, img, img)
     parent1A.flag = Flag.GOOD
@@ -511,7 +522,8 @@ def test_sequence_break_on_flag_change_merge():
 
     tracked_sequence = link_features.link_features(
         [tracked_image1, tracked_image2, tracked_image3, tracked_image4,
-         tracked_image5])
+         tracked_image5],
+        basic_config)
     
     sequences = tracked_sequence.sequences
     assert len(sequences) == 6
@@ -552,7 +564,7 @@ def test_sequence_break_on_flag_change_merge():
             raise ValueError("Unexpected sequence")
 
 
-def test_sequence_break_on_flag_change_split():
+def test_sequence_break_on_flag_change_split(basic_config):
     img = np.ones((2, 2))
     parentA = Feature(1, (5, 10), img, img, img)
     parentA.flag = Flag.GOOD
@@ -584,7 +596,8 @@ def test_sequence_break_on_flag_change_split():
     
     tracked_sequence = link_features.link_features(
         [tracked_image1, tracked_image2, tracked_image3, tracked_image4,
-         tracked_image5])
+         tracked_image5],
+        basic_config)
     
     sequences = tracked_sequence.sequences
     assert len(sequences) == 6
@@ -625,7 +638,7 @@ def test_sequence_break_on_flag_change_split():
             raise ValueError("Unexpected sequence")
 
 
-def test_sequence_break_on_flag_change_complex():
+def test_sequence_break_on_flag_change_complex(basic_config):
     img = np.ones((2, 2))
     parent1A = Feature(1, (6, 11), img, img, img)
     parent1A.flag = Flag.GOOD
@@ -662,7 +675,8 @@ def test_sequence_break_on_flag_change_complex():
     
     tracked_sequence = link_features.link_features(
         [tracked_image1, tracked_image2, tracked_image3, tracked_image4,
-         tracked_image5])
+         tracked_image5],
+        basic_config)
     
     sequences = tracked_sequence.sequences
     assert len(sequences) == 8
@@ -714,3 +728,112 @@ def test_sequence_break_on_flag_change_complex():
             assert sequence.fate == Event.LAST_IMAGE
         else:
             raise ValueError("Unexpected sequence")
+
+
+def test_sequence_break_on_size_change_pct(basic_config):
+    basic_config['max_size_change_px'] = '999'
+    basic_config['max_size_change_pct'] = '49'
+    img = np.ones((1, 4))
+    img2 = np.ones((1, 6))
+    img3 = np.ones((1, 3))
+    feature1 = Feature(1, (5, 10), img, img, img)
+    feature2 = Feature(2, (5, 10), img, img, img)
+    feature3 = Feature(3, (5, 10), img2, img2, img2)
+    feature4 = Feature(4, (5, 10), img2, img2, img2)
+    feature5 = Feature(5, (5, 10), img3, img3, img3)
+    
+    tracked_image1 = TrackedImage(time=datetime(1, 1, 1))
+    tracked_image1.add_features(feature1)
+    tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
+    tracked_image2.add_features(feature2)
+    tracked_image3 = TrackedImage(time=datetime(1, 1, 3))
+    tracked_image3.add_features(feature3)
+    tracked_image4 = TrackedImage(time=datetime(1, 1, 4))
+    tracked_image4.add_features(feature4)
+    tracked_image5 = TrackedImage(time=datetime(1, 1, 5))
+    tracked_image5.add_features(feature5)
+    
+    tracked_sequence = link_features.link_features(
+        [tracked_image1, tracked_image2, tracked_image3, tracked_image4,
+         tracked_image5],
+        basic_config)
+    
+    sequences = tracked_sequence.sequences
+    assert len(sequences) == 3
+    assert sequences[0].features == [feature1, feature2]
+    assert sequences[1].features == [feature3, feature4]
+    assert sequences[2].features == [feature5]
+    
+    assert sequences[0].flag == Flag.GOOD
+    assert sequences[1].flag == Flag.GOOD
+    assert sequences[2].flag == Flag.GOOD
+    
+    assert sequences[0].fate_sequences == [sequences[1]]
+    assert sequences[1].fate_sequences == [sequences[2]]
+    
+    assert sequences[1].origin_sequences == [sequences[0]]
+    assert sequences[2].origin_sequences == [sequences[1]]
+    
+    assert sequences[0].origin == Event.FIRST_IMAGE
+    
+    assert sequences[0].fate == Event.SIZE_CHANGE_PCT
+    assert sequences[1].origin == Event.SIZE_CHANGE_PCT
+    
+    assert sequences[1].fate == Event.SIZE_CHANGE_PCT
+    assert sequences[2].origin == Event.SIZE_CHANGE_PCT
+    
+    assert sequences[2].fate == Event.LAST_IMAGE
+
+
+def test_sequence_break_on_size_change_px(basic_config):
+    basic_config['max_size_change_px'] = '4'
+    basic_config['max_size_change_pct'] = '999'
+    img = np.ones((1, 30))
+    img2 = np.ones((1, 35))
+    feature1 = Feature(1, (5, 10), img, img, img)
+    feature2 = Feature(2, (5, 10), img, img, img)
+    feature3 = Feature(3, (5, 10), img2, img2, img2)
+    feature4 = Feature(4, (5, 10), img2, img2, img2)
+    feature5 = Feature(5, (5, 10), img, img, img)
+    
+    tracked_image1 = TrackedImage(time=datetime(1, 1, 1))
+    tracked_image1.add_features(feature1)
+    tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
+    tracked_image2.add_features(feature2)
+    tracked_image3 = TrackedImage(time=datetime(1, 1, 3))
+    tracked_image3.add_features(feature3)
+    tracked_image4 = TrackedImage(time=datetime(1, 1, 4))
+    tracked_image4.add_features(feature4)
+    tracked_image5 = TrackedImage(time=datetime(1, 1, 5))
+    tracked_image5.add_features(feature5)
+    
+    tracked_sequence = link_features.link_features(
+        [tracked_image1, tracked_image2, tracked_image3, tracked_image4,
+         tracked_image5],
+        basic_config)
+    
+    sequences = tracked_sequence.sequences
+    assert len(sequences) == 3
+    assert sequences[0].features == [feature1, feature2]
+    assert sequences[1].features == [feature3, feature4]
+    assert sequences[2].features == [feature5]
+    
+    assert sequences[0].flag == Flag.GOOD
+    assert sequences[1].flag == Flag.GOOD
+    assert sequences[2].flag == Flag.GOOD
+    
+    assert sequences[0].fate_sequences == [sequences[1]]
+    assert sequences[1].fate_sequences == [sequences[2]]
+    
+    assert sequences[1].origin_sequences == [sequences[0]]
+    assert sequences[2].origin_sequences == [sequences[1]]
+    
+    assert sequences[0].origin == Event.FIRST_IMAGE
+    
+    assert sequences[0].fate == Event.SIZE_CHANGE_PX
+    assert sequences[1].origin == Event.SIZE_CHANGE_PX
+    
+    assert sequences[1].fate == Event.SIZE_CHANGE_PX
+    assert sequences[2].origin == Event.SIZE_CHANGE_PX
+    
+    assert sequences[2].fate == Event.LAST_IMAGE

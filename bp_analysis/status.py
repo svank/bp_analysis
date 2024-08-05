@@ -17,3 +17,5 @@ class Event(Enum):
     FIRST_IMAGE = auto()
     LAST_IMAGE = auto()
     COMPLEX = auto()
+    SIZE_CHANGE_PX = auto()
+    SIZE_CHANGE_PCT = auto()

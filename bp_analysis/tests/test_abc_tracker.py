@@ -1,40 +1,8 @@
-import configparser
-
 import numpy as np
 import pytest
 
 from .. import abc_tracker, feature
 from ..status import Flag
-
-
-@pytest.fixture
-def basic_config():
-    config = configparser.ConfigParser()
-    config.read_string("""
-        [main]
-        blur = 0
-        dilation_method = contour
-        contour_require_downhill = False
-        contour_threshold = 0.65
-        contour_min_finding_scale = 1
-        contour_max_intensity_range = 1.2
-        dilation_rounds = 9
-        connect_diagonal = False
-        fpos_thresh = 0.2
-        proximity_thresh = 2
-        
-        n_sigma = 7.5
-        seed_use_laplacian = True
-        seed_mode = relative
-
-        min_size = 10
-        max_size = 1000
-        max_diagonal = 30
-        max_size_change_pct = 50
-        max_size_change_px = 10
-    """)
-    config = config['main']
-    return config
 
 
 def test_calc_laplacian():
