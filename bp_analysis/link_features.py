@@ -5,6 +5,11 @@ from . import status
 
 
 def link_features(tracked_images: list[TrackedImage]) -> "TrackedSequence":
+    
+    #
+    ## Stage 1: Linking features together
+    #
+    
     prev_frame_features = []
     feature_sequences = []
     for image in tracked_images:
@@ -15,12 +20,12 @@ def link_features(tracked_images: list[TrackedImage]) -> "TrackedSequence":
             if len(overlaps) == 0:
                 # This is a new feature
                 sequence = FeatureSequence()
-                sequence.add_feature(feature)
+                sequence.add_features(feature)
                 feature_sequences.append(sequence)
             elif any(s.fate == status.COMPLEX for s in overlap_sequences):
                 # We're connecting to an already-known complex cluster
                 sequence = FeatureSequence()
-                sequence.add_feature(feature)
+                sequence.add_features(feature)
                 feature_sequences.append(sequence)
                 for seq in overlap_sequences:
                     seq.fate_sequences.append(sequence)
@@ -36,11 +41,11 @@ def link_features(tracked_images: list[TrackedImage]) -> "TrackedSequence":
                     overlap.sequence.remove_feature(sibling)
                     
                     sibling_sequence = FeatureSequence()
-                    sibling_sequence.add_feature(sibling)
+                    sibling_sequence.add_features(sibling)
                     feature_sequences.append(sibling_sequence)
                     
                     sequence = FeatureSequence()
-                    sequence.add_feature(feature)
+                    sequence.add_features(feature)
                     feature_sequences.append(sequence)
                     
                     overlap.sequence.fate_sequences.extend(
@@ -53,7 +58,7 @@ def link_features(tracked_images: list[TrackedImage]) -> "TrackedSequence":
                 elif overlap.sequence.fate == status.SPLIT:
                     # This is a multi-split!
                     sequence = FeatureSequence()
-                    sequence.add_feature(feature)
+                    sequence.add_features(feature)
                     feature_sequences.append(sequence)
                     sequence.origin = status.SPLIT
                     overlap.sequence.fate_sequences.append(sequence)
@@ -61,11 +66,11 @@ def link_features(tracked_images: list[TrackedImage]) -> "TrackedSequence":
                 else:
                     # This is a plain ol' split
                     sequence = overlaps[0].sequence
-                    sequence.add_feature(feature)
+                    sequence.add_features(feature)
             elif len(overlaps) >= 2:
                 # This is a merger
                 sequence = FeatureSequence()
-                sequence.add_feature(feature)
+                sequence.add_features(feature)
                 feature_sequences.append(sequence)
                 if (any(feature.time in f.sequence for f in overlaps)
                         or any(s.fate == status.SPLIT
@@ -84,7 +89,7 @@ def link_features(tracked_images: list[TrackedImage]) -> "TrackedSequence":
                         seq.remove_feature(sibling)
                         sibling_sequence = FeatureSequence()
                         feature_sequences.append(sibling_sequence)
-                        sibling_sequence.add_feature(sibling)
+                        sibling_sequence.add_features(sibling)
                         sibling_sequence.origin_sequences.append(seq)
                         seq.fate_sequences.append(sibling_sequence)
                     _walk_and_mark_as_complex(sequence)
@@ -97,14 +102,49 @@ def link_features(tracked_images: list[TrackedImage]) -> "TrackedSequence":
                         seq = feat.sequence
                         seq.fate = status.MERGE
                         seq.fate_sequences.append(sequence)
+        
         if image is tracked_images[0]:
             for sequence in feature_sequences:
                 sequence.origin = status.FIRST_IMAGE
         prev_frame_features = image.features
+    
     for sequence in feature_sequences:
         if (sequence.fate == status.NORMAL
                 and tracked_images[-1].time in sequence):
             sequence.fate = status.LAST_IMAGE
+    
+    #
+    ## Stage 2: Breaking chains apart
+    #
+    
+    i = 0
+    while True:
+        if i >= len(feature_sequences):
+            break
+        
+        sequence = feature_sequences[i]
+        sequence.flag = sequence.features[0].flag
+        for j, feature in enumerate(sequence.features):
+            if feature.flag != sequence.flag:
+                new_sequence = FeatureSequence()
+                new_sequence.add_features(*sequence.features[j:])
+                sequence.features = sequence.features[:j]
+                
+                new_sequence.fate = sequence.fate
+                new_sequence.fate_sequences = sequence.fate_sequences
+                new_sequence.origin = sequence.flag
+                new_sequence.origin_sequences.append(sequence)
+                
+                for seq in new_sequence.fate_sequences:
+                    seq.origin_sequences.remove(sequence)
+                    seq.origin_sequences.append(new_sequence)
+                
+                sequence.fate = feature.flag
+                sequence.fate_sequences = [new_sequence]
+                feature_sequences.insert(i+1, new_sequence)
+                break
+        i += 1
+    
     for i, sequence in enumerate(feature_sequences):
         sequence.id = i + 1
     tracked_sequence = TrackedSequence()

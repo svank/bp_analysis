@@ -114,8 +114,8 @@ def test_FeatureSequence_getitem(feature):
     feature2.time = datetime(1, 1, 2)
     
     sequence = FeatureSequence()
-    sequence.add_feature(feature)
-    sequence.add_feature(feature2)
+    sequence.add_features(feature)
+    sequence.add_features(feature2)
     
     assert sequence[1] is feature
     assert sequence[datetime(1, 1, 1)] is feature
@@ -137,9 +137,9 @@ def test_FeatureSequence_getitem(feature):
 def test_FeatureSequence_len(feature):
     sequence = FeatureSequence()
     assert len(sequence) == 0
-    sequence.add_feature(feature)
+    sequence.add_features(feature)
     assert len(sequence) == 1
-    sequence.add_feature(feature)
+    sequence.add_features(feature)
     assert len(sequence) == 2
 
 

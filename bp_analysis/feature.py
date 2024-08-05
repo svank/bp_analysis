@@ -108,6 +108,7 @@ class FeatureSequence:
         self.fate = status.NORMAL
         self.origin_sequences: list[FeatureSequence] = []
         self.fate_sequences: list[FeatureSequence] = []
+        self.flag = None
     
     def __getitem__(self, item):
         for feature in self.features:
@@ -129,9 +130,10 @@ class FeatureSequence:
     def __len__(self):
         return len(self.features)
     
-    def add_feature(self, feature):
-        self.features.append(feature)
-        feature.sequence = self
+    def add_features(self, *features):
+        for feature in features:
+            self.features.append(feature)
+            feature.sequence = self
     
     def remove_feature(self, feature):
         self.features.remove(feature)
