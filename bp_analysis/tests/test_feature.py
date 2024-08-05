@@ -7,7 +7,7 @@ import pytest
 import scipy.ndimage
 
 from ..feature import Feature, FeatureSequence, TrackedImage
-from .. import status
+from ..status import Event, Flag
 
 
 @pytest.fixture
@@ -36,7 +36,7 @@ def feature():
         cutout=feature,
         data_cutout=data,
         seed_cutout=seeds,
-        flag=status.GOOD,
+        flag=Flag.GOOD,
         feature_class=1,
     )
     return feature
@@ -47,9 +47,9 @@ def test_brightest_pixel(feature):
 
 
 def test_is_good(feature):
-    feature.flag = status.GOOD
+    feature.flag = Flag.GOOD
     assert feature.is_good
-    feature.flag = status.FALSE_POS
+    feature.flag = Flag.FALSE_POS
     assert not feature.is_good
 
 
@@ -152,15 +152,15 @@ def test_TrackedImage_plot_features(feature):
     feature2.cutout_corner = (22, 7)
 
     feature3 = copy.copy(feature)
-    feature3.flag = status.FALSE_POS
+    feature3.flag = Flag.FALSE_POS
     feature3.cutout_corner = (30, 12)
 
     feature4 = copy.copy(feature)
-    feature4.flag = status.CLOSE_NEIGHBOR
+    feature4.flag = Flag.CLOSE_NEIGHBOR
     feature4.cutout_corner = (10, 33)
 
     feature5 = copy.copy(feature2)
-    feature5.flag = status.EDGE
+    feature5.flag = Flag.EDGE
     feature5.cutout_corner = (41, 42)
 
     tracked_image = TrackedImage("source_file", "time", config=None)

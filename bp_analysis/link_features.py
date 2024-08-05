@@ -1,7 +1,7 @@
 import numpy as np
 
 from .feature import *
-from . import status
+from .status import Event
 
 
 def link_features(tracked_images: list[TrackedImage]) -> "TrackedSequence":
@@ -22,7 +22,7 @@ def link_features(tracked_images: list[TrackedImage]) -> "TrackedSequence":
                 sequence = FeatureSequence()
                 sequence.add_features(feature)
                 feature_sequences.append(sequence)
-            elif any(s.fate == status.COMPLEX for s in overlap_sequences):
+            elif any(s.fate == Event.COMPLEX for s in overlap_sequences):
                 # We're connecting to an already-known complex cluster
                 sequence = FeatureSequence()
                 sequence.add_features(feature)
@@ -50,17 +50,17 @@ def link_features(tracked_images: list[TrackedImage]) -> "TrackedSequence":
                     
                     overlap.sequence.fate_sequences.extend(
                         [sibling_sequence, sequence])
-                    overlap.sequence.fate = status.SPLIT
+                    overlap.sequence.fate = Event.SPLIT
                     
                     for seq in (sequence, sibling_sequence):
-                        seq.origin = status.SPLIT
+                        seq.origin = Event.SPLIT
                         seq.origin_sequences.append(overlap.sequence)
-                elif overlap.sequence.fate == status.SPLIT:
+                elif overlap.sequence.fate == Event.SPLIT:
                     # This is a multi-split!
                     sequence = FeatureSequence()
                     sequence.add_features(feature)
                     feature_sequences.append(sequence)
-                    sequence.origin = status.SPLIT
+                    sequence.origin = Event.SPLIT
                     overlap.sequence.fate_sequences.append(sequence)
                     sequence.origin_sequences.append(overlap.sequence)
                 else:
@@ -73,7 +73,7 @@ def link_features(tracked_images: list[TrackedImage]) -> "TrackedSequence":
                 sequence.add_features(feature)
                 feature_sequences.append(sequence)
                 if (any(feature.time in f.sequence for f in overlaps)
-                        or any(s.fate in (status.SPLIT, status.MERGE)
+                        or any(s.fate in (Event.SPLIT, Event.MERGE)
                                for s in overlap_sequences)):
                     # One of the merge inputs already has a recorded
                     # continuation in this frame, so we're discovering a
@@ -95,23 +95,23 @@ def link_features(tracked_images: list[TrackedImage]) -> "TrackedSequence":
                     _walk_and_mark_as_complex(sequence)
                 else:
                     # This is a plain ol' merger
-                    sequence.origin = status.MERGE
+                    sequence.origin = Event.MERGE
                     for f in overlaps:
                         sequence.origin_sequences.append(f.sequence)
                     for feat in overlaps:
                         seq = feat.sequence
-                        seq.fate = status.MERGE
+                        seq.fate = Event.MERGE
                         seq.fate_sequences.append(sequence)
         
         if image is tracked_images[0]:
             for sequence in feature_sequences:
-                sequence.origin = status.FIRST_IMAGE
+                sequence.origin = Event.FIRST_IMAGE
         prev_frame_features = image.features
     
     for sequence in feature_sequences:
-        if (sequence.fate == status.NORMAL
+        if (sequence.fate == Event.NORMAL
                 and tracked_images[-1].time in sequence):
-            sequence.fate = status.LAST_IMAGE
+            sequence.fate = Event.LAST_IMAGE
     
     #
     ## Stage 2: Breaking chains apart
@@ -153,20 +153,20 @@ def link_features(tracked_images: list[TrackedImage]) -> "TrackedSequence":
 
 
 def _walk_and_mark_as_complex(new_sequence):
-    new_sequence.origin = status.COMPLEX
+    new_sequence.origin = Event.COMPLEX
     for parent in new_sequence.origin_sequences:
         # Each of the input features must be marked as complex
-        if parent.fate == status.COMPLEX:
+        if parent.fate == Event.COMPLEX:
             continue
-        parent.fate = status.COMPLEX
+        parent.fate = Event.COMPLEX
         for sibling_seq in parent.fate_sequences:
             # Any other children they have also must be marked
-            if sibling_seq.origin == status.COMPLEX:
+            if sibling_seq.origin == Event.COMPLEX:
                 continue
-            sibling_seq.origin = status.COMPLEX
+            sibling_seq.origin = Event.COMPLEX
             for other_parent in sibling_seq.origin_sequences:
                 # And any of their parents as well
-                other_parent.fate = status.COMPLEX
+                other_parent.fate = Event.COMPLEX
                 # But we don't need to go to p's children, as if
                 # there are any, then s should already have been
                 # marked as complex

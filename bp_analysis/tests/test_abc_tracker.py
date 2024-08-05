@@ -3,7 +3,8 @@ import configparser
 import numpy as np
 import pytest
 
-from .. import abc_tracker, feature, status
+from .. import abc_tracker, feature
+from ..status import Flag
 
 
 @pytest.fixture
@@ -363,14 +364,14 @@ def test_filter_close_neighbors(basic_config):
     abc_tracker.filter_close_neighbors(
         labeled_feats, basic_config, tracked_image)
     for feat in tracked_image.features:
-        assert feat.flag == status.GOOD
+        assert feat.flag == Flag.GOOD
     
     basic_config['proximity_thresh'] = '3'
     
     abc_tracker.filter_close_neighbors(
         labeled_feats, basic_config, tracked_image)
     for feat in tracked_image.features:
-        assert feat.flag == status.CLOSE_NEIGHBOR
+        assert feat.flag == Flag.CLOSE_NEIGHBOR
 
 
 def test_remove_false_positives(basic_config):
@@ -391,14 +392,14 @@ def test_remove_false_positives(basic_config):
     abc_tracker.remove_false_positives(labeled_feats, laplacian, basic_config,
                                        labeled_feats, seeds, tracked_image)
     for feat in tracked_image.features:
-        assert feat.flag == status.GOOD
+        assert feat.flag == Flag.GOOD
     
     # Feature can grow along all sides
     laplacian[4:11, 4:11] = 1
     abc_tracker.remove_false_positives(labeled_feats, laplacian, basic_config,
                                        labeled_feats, seeds, tracked_image)
     for feat in tracked_image.features:
-        assert feat.flag == status.FALSE_POS
+        assert feat.flag == Flag.FALSE_POS
 
 
 def test_filter_size(basic_config):
@@ -420,8 +421,8 @@ def test_filter_size(basic_config):
     abc_tracker.filter_size(tracked_image, basic_config)
     
     assert len(tracked_image.features) == 2
-    assert tracked_image.features[0].flag == status.TOO_SMALL
-    assert tracked_image.features[1].flag == status.TOO_BIG
+    assert tracked_image.features[0].flag == Flag.TOO_SMALL
+    assert tracked_image.features[1].flag == Flag.TOO_BIG
     
     labeled_feats = np.zeros((20, 20), dtype=int)
     
@@ -439,8 +440,8 @@ def test_filter_size(basic_config):
     abc_tracker.filter_size(tracked_image, basic_config)
     
     assert len(tracked_image.features) == 2
-    assert tracked_image.features[0].flag == status.GOOD
-    assert tracked_image.features[1].flag == status.GOOD
+    assert tracked_image.features[0].flag == Flag.GOOD
+    assert tracked_image.features[1].flag == Flag.GOOD
 
 
 def test_filter_size_diagonal(basic_config):
@@ -461,8 +462,8 @@ def test_filter_size_diagonal(basic_config):
     abc_tracker.filter_size(tracked_image, basic_config)
     
     assert len(tracked_image.features) == 2
-    assert tracked_image.features[0].flag == status.GOOD
-    assert tracked_image.features[1].flag == status.TOO_BIG
+    assert tracked_image.features[0].flag == Flag.GOOD
+    assert tracked_image.features[1].flag == Flag.TOO_BIG
 
 
 def test_fully_process_one_image(
@@ -492,12 +493,12 @@ def test_fully_process_one_image(
         real_feature = details_by_brightest_px[(r, c)]
         width, height = found_feature.cutout.shape
         assert width == height
-        if found_feature.flag == status.FALSE_POS:
+        if found_feature.flag == Flag.FALSE_POS:
             assert width // 2 < real_feature[2]
         else:
             assert width // 2 == real_feature[2]
         assert found_feature.flag == real_feature[3]
-        assert found_feature.is_good == (real_feature[3] == status.GOOD)
+        assert found_feature.is_good == (real_feature[3] == Flag.GOOD)
 
 
 def test_load_data_trim(basic_config, mocker):

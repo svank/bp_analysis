@@ -1,13 +1,19 @@
-GOOD = 'good'
-FALSE_POS = 'fpos'
-CLOSE_NEIGHBOR = 'neighbor'
-EDGE = 'edge'
-TOO_SMALL = 'too small'
-TOO_BIG = 'too big'
+from enum import Enum, auto
 
-NORMAL = 'normal'
-MERGE = 'merge'
-SPLIT = 'split'
-FIRST_IMAGE = 'first_image'
-LAST_IMAGE = 'last_image'
-COMPLEX = 'complex'
+
+class Flag(Enum):
+    GOOD = auto()
+    FALSE_POS = auto()
+    CLOSE_NEIGHBOR = auto()
+    EDGE = auto()
+    TOO_SMALL = auto()
+    TOO_BIG = auto()
+
+
+class Event(Enum):
+    NORMAL = auto()
+    MERGE = auto()
+    SPLIT = auto()
+    FIRST_IMAGE = auto()
+    LAST_IMAGE = auto()
+    COMPLEX = auto()

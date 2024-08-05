@@ -18,7 +18,7 @@ import scipy.signal
 from tqdm.contrib.concurrent import process_map
 
 from .feature import TrackedImage
-from . import status
+from .status import Flag
 from .tracking_utils import gen_coord_map, gen_kernel
 
 
@@ -244,7 +244,7 @@ def remove_edge_touchers(labeled_feats, tracked_image):
         labeled_feats[:, -2:].flatten()))
     ids = np.unique(edges[edges != 0])
     for id in ids:
-        tracked_image[id].flag = status.EDGE
+        tracked_image[id].flag = Flag.EDGE
 
 
 def remove_false_positives(labeled_feats, laplacian, config, im, seeds,
@@ -301,7 +301,7 @@ def remove_false_positives(labeled_feats, laplacian, config, im, seeds,
         
         # Mark features that don't meet the threshold
         if gained_pix / possible_pix > config.getfloat('fpos_thres', 0.2):
-            feature.flag = status.FALSE_POS
+            feature.flag = Flag.FALSE_POS
 
 
 def filter_close_neighbors(labeled_feats, config, tracked_image):
@@ -312,7 +312,7 @@ def filter_close_neighbors(labeled_feats, config, tracked_image):
     closeness = config.getint('proximity_thresh', 4)
     # Iterate over all features in image
     for feature in tracked_image.features:
-        if feature.flag == status.CLOSE_NEIGHBOR:
+        if feature.flag == Flag.CLOSE_NEIGHBOR:
             # This feature was already flagged as too close to one of its
             # neighbors
             continue
@@ -345,9 +345,9 @@ def filter_close_neighbors(labeled_feats, config, tracked_image):
         for neighbor in neighbors:
             # This feature is too close to another feature,
             # so we flag it
-            tracked_image[neighbor].flag = status.CLOSE_NEIGHBOR
+            tracked_image[neighbor].flag = Flag.CLOSE_NEIGHBOR
         if len(neighbors):
-            tracked_image[feature.id].flag = status.CLOSE_NEIGHBOR
+            tracked_image[feature.id].flag = Flag.CLOSE_NEIGHBOR
 
 
 def filter_size(tracked_image: TrackedImage, config):
@@ -361,10 +361,10 @@ def filter_size(tracked_image: TrackedImage, config):
         rs, cs = feature.indices
         
         if min_size > 0 and rs.size < min_size:
-            feature.flag = status.TOO_SMALL
+            feature.flag = Flag.TOO_SMALL
             continue
         if max_size > 0 and rs.size > max_size:
-            feature.flag = status.TOO_BIG
+            feature.flag = Flag.TOO_BIG
             continue
         
         if max_diagonal is not None:
@@ -375,7 +375,7 @@ def filter_size(tracked_image: TrackedImage, config):
             
             diagonal = np.sqrt((rmax - rmin) ** 2 + (cmax - cmin) ** 2)
             if max_diagonal > 0 and diagonal > max_diagonal:
-                feature.flag = status.TOO_BIG
+                feature.flag = Flag.TOO_BIG
                 continue
 
 

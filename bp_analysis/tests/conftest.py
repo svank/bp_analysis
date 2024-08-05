@@ -1,24 +1,24 @@
 import numpy as np
 import pytest
 
-from .. import status
+from ..status import Flag
 
 
 @pytest.fixture
 def feature_details_for_map():
-    feature_details = [(30, 20, 5, status.GOOD),
-                       (70, 22, 9, status.GOOD),
-                       (10, 82, 2, status.GOOD),
-                       (18, 82, 1, status.TOO_SMALL),
-                       (10, 2, 2, status.EDGE),
-                       (3, 10, 3, status.EDGE),
-                       (10, 97, 2, status.EDGE),
-                       (96, 10, 3, status.EDGE),
-                       (50, 50, 2, status.CLOSE_NEIGHBOR),
-                       (56, 50, 2, status.CLOSE_NEIGHBOR),
-                       (50, 56, 2, status.CLOSE_NEIGHBOR),
-                       (50, 62, 2, status.CLOSE_NEIGHBOR),
-                       (80, 80, 12, status.FALSE_POS),
+    feature_details = [(30, 20, 5, Flag.GOOD),
+                       (70, 22, 9, Flag.GOOD),
+                       (10, 82, 2, Flag.GOOD),
+                       (18, 82, 1, Flag.TOO_SMALL),
+                       (10, 2, 2, Flag.EDGE),
+                       (3, 10, 3, Flag.EDGE),
+                       (10, 97, 2, Flag.EDGE),
+                       (96, 10, 3, Flag.EDGE),
+                       (50, 50, 2, Flag.CLOSE_NEIGHBOR),
+                       (56, 50, 2, Flag.CLOSE_NEIGHBOR),
+                       (50, 56, 2, Flag.CLOSE_NEIGHBOR),
+                       (50, 62, 2, Flag.CLOSE_NEIGHBOR),
+                       (80, 80, 12, Flag.FALSE_POS),
                        ]
     return feature_details
 

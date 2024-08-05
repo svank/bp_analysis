@@ -6,12 +6,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.ndimage
 
-from . import db_analysis, status
+from . import db_analysis
+from .status import Flag, Event
 
 
 class Feature:
     def __init__(self, id, cutout_corner, cutout, data_cutout, seed_cutout,
-                 flag=status.GOOD, feature_class=None):
+                 flag=Flag.GOOD, feature_class=None):
         self.id = id
         self.cutout_corner = cutout_corner
         self.cutout = cutout.astype(bool, copy=False)
@@ -50,16 +51,16 @@ class Feature:
     
     @property
     def is_good(self):
-        return self.flag == status.GOOD
+        return self.flag == Flag.GOOD
     
     def plot_onto(self, ax, ids=False):
         r, c = np.nonzero(self.cutout)
         r += self.cutout_corner[0]
         c += self.cutout_corner[1]
-        color = {status.GOOD: (.2, 1, .2, .8),
-                 status.FALSE_POS: (1, .1, .1, .8),
-                 status.CLOSE_NEIGHBOR: (1, 1, 1, .8),
-                 status.EDGE: (.1, .1, 1, .8)}[self.flag]
+        color = {Flag.GOOD: (.2, 1, .2, .8),
+                 Flag.FALSE_POS: (1, .1, .1, .8),
+                 Flag.CLOSE_NEIGHBOR: (1, 1, 1, .8),
+                 Flag.EDGE: (.1, .1, 1, .8)}[self.flag]
         db_analysis.outline_BP(r, c, scale=1, line_color=color, ax=ax)
         if ids:
             plt.text(np.mean(c), np.mean(r), self.id, color=color,
@@ -104,8 +105,8 @@ class FeatureSequence:
     def __init__(self):
         self.id = None
         self.features: list[Feature] = []
-        self.origin = status.NORMAL
-        self.fate = status.NORMAL
+        self.origin = Event.NORMAL
+        self.fate = Event.NORMAL
         self.origin_sequences: list[FeatureSequence] = []
         self.fate_sequences: list[FeatureSequence] = []
         self.flag = None
@@ -164,7 +165,7 @@ class TrackedImage:
             feature_cutout = feature_map[region] == id
             data_cutout = data[region].copy()
             seed_cutout = np.where(feature_cutout, seeds[region], 0)
-            feature_flag = status.GOOD
+            feature_flag = Flag.GOOD
             if classes:
                 feature_class = classes[region][feature_cutout][0]
             else:
