@@ -71,6 +71,8 @@ def basic_config():
         max_diagonal = 30
         max_size_change_pct = 50
         max_size_change_px = 10
+        
+        min_lifetime = 1
     """)
     config = config['main']
     return config

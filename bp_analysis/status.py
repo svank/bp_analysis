@@ -8,6 +8,23 @@ class Flag(Enum):
     EDGE = auto()
     TOO_SMALL = auto()
     TOO_BIG = auto()
+    
+    def __repr__(self):
+        return self.name
+    
+    def __str__(self):
+        return repr(self)
+
+
+class SequenceFlag(Enum):
+    GOOD = auto()
+    TOO_SHORT = auto()
+    
+    def __repr__(self):
+        return self.name
+    
+    def __str__(self):
+        return repr(self)
 
 
 class Event(Enum):
@@ -19,3 +36,9 @@ class Event(Enum):
     COMPLEX = auto()
     SIZE_CHANGE_PX = auto()
     SIZE_CHANGE_PCT = auto()
+    
+    def __repr__(self):
+        return self.name
+    
+    def __str__(self):
+        return repr(self)

@@ -2,7 +2,7 @@ import configparser
 import numpy as np
 
 from .feature import *
-from .status import Event
+from .status import Event, SequenceFlag
 
 
 def link_features(tracked_images: list[TrackedImage],
@@ -135,7 +135,7 @@ def link_features(tracked_images: list[TrackedImage],
             break
         
         sequence = feature_sequences[i]
-        sequence.flag = sequence.features[0].flag
+        sequence.feature_flag = sequence.features[0].flag
         bad_size_pct = False
         bad_size_px = False
         for j, feature in enumerate(sequence.features):
@@ -145,7 +145,7 @@ def link_features(tracked_images: list[TrackedImage],
                 dsize = np.abs(cur_size - prev_size)
                 bad_size_px = dsize > max_size_change_px
                 bad_size_pct = dsize / prev_size * 100 > max_size_change_pct
-            if feature.flag != sequence.flag or bad_size_pct or bad_size_px:
+            if feature.flag != sequence.feature_flag or bad_size_pct or bad_size_px:
                 new_sequence = FeatureSequence()
                 new_sequence.add_features(*sequence.features[j:])
                 sequence.features = sequence.features[:j]
@@ -158,7 +158,7 @@ def link_features(tracked_images: list[TrackedImage],
                 elif bad_size_px:
                     new_sequence.origin = Event.SIZE_CHANGE_PX
                 else:
-                    new_sequence.origin = sequence.flag
+                    new_sequence.origin = sequence.feature_flag
                 
                 for seq in new_sequence.fate_sequences:
                     seq.origin_sequences.remove(sequence)
@@ -175,6 +175,21 @@ def link_features(tracked_images: list[TrackedImage],
                 feature_sequences.insert(i+1, new_sequence)
                 break
         i += 1
+    
+    #
+    ## Stage 3: Filtering the sequences
+    #
+    
+    min_lifetime = config.getint('min_lifetime', 5)
+    for sequence in feature_sequences:
+        if len(sequence.features) < min_lifetime:
+            sequence.flag = SequenceFlag.TOO_SHORT
+        else:
+            sequence.flag = SequenceFlag.GOOD
+    
+    #
+    ## Stage 4: Wrapup
+    #
     
     for i, sequence in enumerate(feature_sequences):
         sequence.id = i + 1

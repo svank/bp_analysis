@@ -109,6 +109,7 @@ class FeatureSequence:
         self.fate = Event.NORMAL
         self.origin_sequences: list[FeatureSequence] = []
         self.fate_sequences: list[FeatureSequence] = []
+        self.feature_flag = None
         self.flag = None
     
     def __getitem__(self, item):
