@@ -73,7 +73,7 @@ def link_features(tracked_images: list[TrackedImage]) -> "TrackedSequence":
                 sequence.add_features(feature)
                 feature_sequences.append(sequence)
                 if (any(feature.time in f.sequence for f in overlaps)
-                        or any(s.fate == status.SPLIT
+                        or any(s.fate in (status.SPLIT, status.MERGE)
                                for s in overlap_sequences)):
                     # One of the merge inputs already has a recorded
                     # continuation in this frame, so we're discovering a

@@ -226,7 +226,7 @@ def test_three_way_merge():
         assert seq.id == i + 1
 
 
-def test_split_becomes_complex():
+def test_split_and_simple_becomes_complex():
     img = np.ones((2, 2))
     # Parent
     parent1 = Feature(1, (5, 10), img, img, img)
@@ -287,6 +287,56 @@ def test_split_becomes_complex():
         assert seq.id == i + 1
 
 
+def test_split_becomes_complex():
+    img = np.ones((2, 2))
+    # Parent
+    parent1 = Feature(1, (5, 10), img, img, img)
+    # Splits into these two
+    split1 = Feature(2, (6, 11), img, img, img)
+    split2 = Feature(3, (6, 9), img, img, img)
+    
+    # Another parent
+    parent2 = Feature(4, (3, 9), img, img, img)
+    # This one is a merge from both parents
+    merge = Feature(5, (4, 9), img, img, img)
+    
+    tracked_image1 = TrackedImage(time=datetime(1, 1, 1))
+    tracked_image1.add_features(parent1, parent2)
+    tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
+    tracked_image2.add_features(split1, split2, merge)
+    
+    tracked_sequence = link_features.link_features(
+        [tracked_image1, tracked_image2])
+    
+    sequences = tracked_sequence.sequences
+    assert all(s.flag == status.GOOD for s in sequences)
+    assert len(sequences) == 5
+    for seq in sequences:
+        assert len(seq) == 1
+    
+    for sequence, feature in zip(sequences[:2], [parent1, parent2]):
+        assert sequence.origin == status.FIRST_IMAGE
+        assert sequence.fate == status.COMPLEX
+        assert feature in sequence
+    
+    assert split1.sequence in parent1.sequence.fate_sequences
+    assert split2.sequence in parent1.sequence.fate_sequences
+    assert merge.sequence in parent1.sequence.fate_sequences
+    
+    assert merge.sequence in parent2.sequence.fate_sequences
+    
+    for seq, feat in zip(sequences[2:], [split1, split2, merge]):
+        assert seq.origin == status.COMPLEX
+        assert seq.fate == status.LAST_IMAGE
+        assert feat in seq
+        assert parent1.sequence in seq.origin_sequences
+    
+    assert parent2.sequence in merge.sequence.origin_sequences
+    
+    for i, seq in enumerate(sequences):
+        assert seq.id == i + 1
+
+
 def test_simple_becomes_complex():
     img = np.ones((2, 2))
     # Parent
@@ -342,6 +392,40 @@ def test_simple_becomes_complex():
     
     for i, seq in enumerate(sequences):
         assert seq.id == i + 1
+
+
+def test_merge_becomes_complex():
+    img = np.ones((2, 2))
+    parent1 = Feature(1, (5, 10), img, img, img)
+    parent2 = Feature(2, (6, 11), img, img, img)
+    
+    child1 = Feature(3, (5, 10), img, img, img)
+    child2 = Feature(4, (6, 11), img, img, img)
+    
+    tracked_image1 = TrackedImage(time=datetime(1, 1, 1))
+    tracked_image1.add_features(parent1, parent2)
+    tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
+    tracked_image2.add_features(child1, child2)
+    
+    tracked_sequence = link_features.link_features(
+        [tracked_image1, tracked_image2])
+    
+    sequences = tracked_sequence.sequences
+    assert all(s.flag == status.GOOD for s in sequences)
+    assert len(sequences) == 4
+    for seq in sequences:
+        assert len(seq) == 1
+    
+    for feature in [parent1, parent2]:
+        assert feature.sequence.origin == status.FIRST_IMAGE
+        assert feature.sequence.fate == status.COMPLEX
+        assert feature.sequence.fate_sequences == sequences[2:]
+    
+    for feature in [child1, child2]:
+        assert feature.sequence.origin == status.COMPLEX
+        assert feature.sequence.fate == status.LAST_IMAGE
+        assert feature.sequence.origin_sequences == sequences[:2]
+
 
 def test_sequence_break_on_flag_change_simple_sequence():
     img = np.ones((2, 2))
