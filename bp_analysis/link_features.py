@@ -6,7 +6,7 @@ from .status import Event, SequenceFlag
 
 
 def link_features(tracked_images: list[TrackedImage],
-                  config_file) -> "TrackedSequence":
+                  config_file) -> "TrackedImageSet":
     if isinstance(config_file, configparser.SectionProxy):
         config = config_file
     else:
@@ -193,9 +193,9 @@ def link_features(tracked_images: list[TrackedImage],
     
     for i, sequence in enumerate(feature_sequences):
         sequence.id = i + 1
-    tracked_sequence = TrackedSequence()
-    tracked_sequence.add_sequences(*feature_sequences)
-    return tracked_sequence
+    tracked_image_set = TrackedImageSet()
+    tracked_image_set.add_sequences(*feature_sequences)
+    return tracked_image_set
 
 
 def _walk_and_mark_as_complex(new_sequence):
@@ -218,7 +218,7 @@ def _walk_and_mark_as_complex(new_sequence):
                 # marked as complex
 
 
-class TrackedSequence:
+class TrackedImageSet:
     def __init__(self):
         self.sequences: list[FeatureSequence] = []
     

@@ -16,11 +16,11 @@ def test_overlapping(basic_config):
     tracked_image3 = TrackedImage(time=datetime(1, 1, 3))
     tracked_image3.add_features(feature3)
     
-    tracked_sequence = link_features.link_features(
+    tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2, tracked_image3],
         basic_config)
     
-    sequences = tracked_sequence.sequences
+    sequences = tracked_image_set.sequences
     assert all(s.feature_flag == Flag.GOOD for s in sequences)
     assert len(sequences) == 1
     sequence = sequences[0]
@@ -48,11 +48,11 @@ def test_non_overlapping(basic_config):
     tracked_image3 = TrackedImage(time=datetime(1, 1, 3))
     tracked_image3.add_features(feature3)
     
-    tracked_sequence = link_features.link_features(
+    tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2, tracked_image3],
         basic_config)
     
-    sequences = tracked_sequence.sequences
+    sequences = tracked_image_set.sequences
     assert all(s.feature_flag == Flag.GOOD for s in sequences)
     assert len(sequences) == 3
     assert len(sequences[0].features) == 1
@@ -84,11 +84,11 @@ def test_split(basic_config):
     tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
     tracked_image2.add_features(feature2, feature3)
     
-    tracked_sequence = link_features.link_features(
+    tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2],
         basic_config)
     
-    sequences = tracked_sequence.sequences
+    sequences = tracked_image_set.sequences
     assert all(s.feature_flag == Flag.GOOD for s in sequences)
     assert len(sequences) == 3
     assert len(sequences[0].features) == 1
@@ -123,11 +123,11 @@ def test_three_way_split(basic_config):
     tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
     tracked_image2.add_features(feature2, feature3, feature4)
     
-    tracked_sequence = link_features.link_features(
+    tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2],
         basic_config)
     
-    sequences = tracked_sequence.sequences
+    sequences = tracked_image_set.sequences
     assert all(s.feature_flag == Flag.GOOD for s in sequences)
     assert len(sequences) == 4
     assert len(sequences[0].features) == 1
@@ -163,11 +163,11 @@ def test_merge(basic_config):
     tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
     tracked_image2.add_features(feature1)
     
-    tracked_sequence = link_features.link_features(
+    tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2],
         basic_config)
     
-    sequences = tracked_sequence.sequences
+    sequences = tracked_image_set.sequences
     assert all(s.feature_flag == Flag.GOOD for s in sequences)
     assert len(sequences) == 3
     assert len(sequences[0].features) == 1
@@ -202,11 +202,11 @@ def test_three_way_merge(basic_config):
     tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
     tracked_image2.add_features(feature1)
     
-    tracked_sequence = link_features.link_features(
+    tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2],
         basic_config)
     
-    sequences = tracked_sequence.sequences
+    sequences = tracked_image_set.sequences
     assert all(s.feature_flag == Flag.GOOD for s in sequences)
     assert len(sequences) == 4
     assert len(sequences[0].features) == 1
@@ -253,11 +253,11 @@ def test_split_and_simple_becomes_complex(basic_config):
     tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
     tracked_image2.add_features(split1, split2, simple1, merge, simple2)
     
-    tracked_sequence = link_features.link_features(
+    tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2],
         basic_config)
     
-    sequences = tracked_sequence.sequences
+    sequences = tracked_image_set.sequences
     assert all(s.feature_flag == Flag.GOOD for s in sequences)
     assert len(sequences) == 7
     for seq in sequences:
@@ -311,11 +311,11 @@ def test_split_becomes_complex(basic_config):
     tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
     tracked_image2.add_features(split1, split2, merge)
     
-    tracked_sequence = link_features.link_features(
+    tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2],
         basic_config)
     
-    sequences = tracked_sequence.sequences
+    sequences = tracked_image_set.sequences
     assert all(s.feature_flag == Flag.GOOD for s in sequences)
     assert len(sequences) == 5
     for seq in sequences:
@@ -365,11 +365,11 @@ def test_simple_becomes_complex(basic_config):
     tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
     tracked_image2.add_features(simple1, simple2, merge, simple3)
     
-    tracked_sequence = link_features.link_features(
+    tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2],
         basic_config)
     
-    sequences = tracked_sequence.sequences
+    sequences = tracked_image_set.sequences
     assert all(s.feature_flag == Flag.GOOD for s in sequences)
     assert len(sequences) == 6
     for seq in sequences:
@@ -415,11 +415,11 @@ def test_merge_becomes_complex(basic_config):
     tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
     tracked_image2.add_features(child1, child2)
     
-    tracked_sequence = link_features.link_features(
+    tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2],
         basic_config)
     
-    sequences = tracked_sequence.sequences
+    sequences = tracked_image_set.sequences
     assert all(s.feature_flag == Flag.GOOD for s in sequences)
     assert len(sequences) == 4
     for seq in sequences:
@@ -458,12 +458,12 @@ def test_sequence_break_on_flag_change_simple_sequence(basic_config):
     tracked_image5 = TrackedImage(time=datetime(1, 1, 5))
     tracked_image5.add_features(feature5)
 
-    tracked_sequence = link_features.link_features(
+    tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2, tracked_image3, tracked_image4,
          tracked_image5],
         basic_config)
     
-    sequences = tracked_sequence.sequences
+    sequences = tracked_image_set.sequences
     assert len(sequences) == 3
     assert sequences[0].features == [feature1, feature2]
     assert sequences[1].features == [feature3]
@@ -520,12 +520,12 @@ def test_sequence_break_on_flag_change_merge(basic_config):
     tracked_image5 = TrackedImage(time=datetime(1, 1, 5))
     tracked_image5.add_features(childC)
 
-    tracked_sequence = link_features.link_features(
+    tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2, tracked_image3, tracked_image4,
          tracked_image5],
         basic_config)
     
-    sequences = tracked_sequence.sequences
+    sequences = tracked_image_set.sequences
     assert len(sequences) == 6
     for sequence in sequences:
         assert sequence.feature_flag == sequence.features[0].flag
@@ -594,12 +594,12 @@ def test_sequence_break_on_flag_change_split(basic_config):
     tracked_image5 = TrackedImage(time=datetime(1, 1, 5))
     tracked_image5.add_features(child1C, child2C)
     
-    tracked_sequence = link_features.link_features(
+    tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2, tracked_image3, tracked_image4,
          tracked_image5],
         basic_config)
     
-    sequences = tracked_sequence.sequences
+    sequences = tracked_image_set.sequences
     assert len(sequences) == 6
     for sequence in sequences:
         assert sequence.feature_flag == sequence.features[0].flag
@@ -673,12 +673,12 @@ def test_sequence_break_on_flag_change_complex(basic_config):
     tracked_image5 = TrackedImage(time=datetime(1, 1, 5))
     tracked_image5.add_features(child1C, child2C)
     
-    tracked_sequence = link_features.link_features(
+    tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2, tracked_image3, tracked_image4,
          tracked_image5],
         basic_config)
     
-    sequences = tracked_sequence.sequences
+    sequences = tracked_image_set.sequences
     assert len(sequences) == 8
     for sequence in sequences:
         assert sequence.feature_flag == sequence.features[0].flag
@@ -753,12 +753,12 @@ def test_sequence_break_on_size_change_pct(basic_config):
     tracked_image5 = TrackedImage(time=datetime(1, 1, 5))
     tracked_image5.add_features(feature5)
     
-    tracked_sequence = link_features.link_features(
+    tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2, tracked_image3, tracked_image4,
          tracked_image5],
         basic_config)
     
-    sequences = tracked_sequence.sequences
+    sequences = tracked_image_set.sequences
     assert len(sequences) == 3
     assert sequences[0].features == [feature1, feature2]
     assert sequences[1].features == [feature3, feature4]
@@ -807,12 +807,12 @@ def test_sequence_break_on_size_change_px(basic_config):
     tracked_image5 = TrackedImage(time=datetime(1, 1, 5))
     tracked_image5.add_features(feature5)
     
-    tracked_sequence = link_features.link_features(
+    tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2, tracked_image3, tracked_image4,
          tracked_image5],
         basic_config)
     
-    sequences = tracked_sequence.sequences
+    sequences = tracked_image_set.sequences
     assert len(sequences) == 3
     assert sequences[0].features == [feature1, feature2]
     assert sequences[1].features == [feature3, feature4]
@@ -858,11 +858,11 @@ def test_min_lifetime(basic_config):
     tracked_image3 = TrackedImage(time=datetime(1, 1, 3))
     tracked_image3.add_features(featureC3)
     
-    tracked_sequence = link_features.link_features(
+    tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2, tracked_image3],
         basic_config)
     
-    assert len(tracked_sequence.sequences) == 3
+    assert len(tracked_image_set.sequences) == 3
     assert featureA1.sequence.flag == SequenceFlag.TOO_SHORT
     assert featureB1.sequence.flag == SequenceFlag.GOOD
     assert featureC1.sequence.flag == SequenceFlag.GOOD
