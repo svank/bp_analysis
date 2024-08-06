@@ -8,6 +8,7 @@ class Flag(Enum):
     EDGE = auto()
     TOO_SMALL = auto()
     TOO_BIG = auto()
+    TOO_LONG = auto()
     
     def __repr__(self):
         return self.name

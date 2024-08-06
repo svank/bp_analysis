@@ -431,7 +431,7 @@ def test_filter_size_diagonal(basic_config):
     
     assert len(tracked_image.features) == 2
     assert tracked_image.features[0].flag == Flag.GOOD
-    assert tracked_image.features[1].flag == Flag.TOO_BIG
+    assert tracked_image.features[1].flag == Flag.TOO_LONG
 
 
 def test_fully_process_one_image(

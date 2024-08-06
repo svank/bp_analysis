@@ -63,7 +63,8 @@ class Feature:
                   Flag.CLOSE_NEIGHBOR: ((1, 1, 1, .8), "Proximity"),
                   Flag.EDGE: ((.1, .1, 1, .8), "Edge"),
                   Flag.TOO_SMALL: ((.1, 1, 1, .8), "Size"),
-                  Flag.TOO_BIG: ((.1, 1, 1, .8), "")}
+                  Flag.TOO_BIG: ((.1, 1, 1, .8), ""),
+                  Flag.TOO_LONG: ((.1, 1, 1, .8), "")}
         color = colors[self.flag][0]
         db_analysis.outline_BP(r, c, scale=1, line_color=color, ax=ax)
         if ids:
