@@ -420,7 +420,6 @@ def load_data(file, config):
     trim = config.getint('trim_image', 0)
     if trim:
         data = data[trim:-trim, trim:-trim]
-    
     return time, data
 
 
@@ -447,6 +446,11 @@ def fully_process_one_image(file, config) -> TrackedImage:
             feature.feature_class = 'positive'
         tracked_image.merge_features(negative_tracked_image)
     
+    trim = config.getint('trim_image', 0)
+    if trim:
+        for feature in tracked_image.features:
+            feature.cutout_corner = (feature.cutout_corner[0] + trim,
+                                     feature.cutout_corner[1] + trim)
     return tracked_image
 
 

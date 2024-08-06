@@ -1,6 +1,7 @@
 from datetime import datetime
 import functools
 
+from matplotlib.lines import Line2D
 import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 import numpy as np
@@ -53,20 +54,31 @@ class Feature:
     def is_good(self):
         return self.flag == Flag.GOOD
     
-    def plot_onto(self, ax, ids=False):
+    def plot_onto(self, ax, ids=False, legend=False):
         r, c = np.nonzero(self.cutout)
         r += self.cutout_corner[0]
         c += self.cutout_corner[1]
-        color = {Flag.GOOD: (.2, 1, .2, .8),
-                 Flag.FALSE_POS: (1, .1, .1, .8),
-                 Flag.CLOSE_NEIGHBOR: (1, 1, 1, .8),
-                 Flag.EDGE: (.1, .1, 1, .8)}[self.flag]
+        colors = {Flag.GOOD: ((.2, 1, .2, .8), "OK"),
+                  Flag.FALSE_POS: ((1, .1, .1, .8), "False +"),
+                  Flag.CLOSE_NEIGHBOR: ((1, 1, 1, .8), "Proximity"),
+                  Flag.EDGE: ((.1, .1, 1, .8), "Edge"),
+                  Flag.TOO_SMALL: ((.1, 1, 1, .8), "Size"),
+                  Flag.TOO_BIG: ((.1, 1, 1, .8), "")}
+        color = colors[self.flag][0]
         db_analysis.outline_BP(r, c, scale=1, line_color=color, ax=ax)
         if ids:
             plt.text(np.mean(c), np.mean(r), self.id, color=color,
                      path_effects=[
                      pe.Stroke(linewidth=1, foreground='k'),
                      pe.Normal()],)
+        if legend:
+            lines = []
+            names = []
+            for color, name in colors.values():
+                if name:
+                    lines.append(Line2D([0], [0], color=color))
+                    names.append(name)
+            ax.legend(lines, names)
     
     def plot(self, ax=None, **kwargs):
         if ax is None:
