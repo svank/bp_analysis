@@ -14,7 +14,10 @@ class Flag(Enum):
         return self.name
     
     def __str__(self):
-        return repr(self)
+        str = self.name.lower()
+        str = str.replace('_', ' ')
+        str = str[0].upper() + str[1:]
+        return str
 
 
 class SequenceFlag(Enum):

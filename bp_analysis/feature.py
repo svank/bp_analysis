@@ -11,6 +11,29 @@ from . import db_analysis
 from .status import Flag, Event
 
 
+COLORS = {Flag.GOOD: ((.2, 1, .2, .8), "OK"),
+          Flag.FALSE_POS: ((1, .1, .1, .8), "False pos"),
+          Flag.CLOSE_NEIGHBOR: ((1, 1, 1, .8), "Proximity"),
+          Flag.EDGE: ((.1, .1, 1, .8), "Edge"),
+          Flag.TOO_SMALL: ((.1, 1, 1, .8), "Size"),
+          Flag.TOO_BIG: ((.1, 1, 1, .8), ""),
+          Flag.TOO_LONG: ((.1, 1, 1, .8), "")}
+
+
+def _draw_color_legend(ax):
+    lines = []
+    names = []
+    for color, name in COLORS.values():
+        if name:
+            lines.append(Line2D(
+                [0], [0], color=color[:3], lw=3, path_effects=[
+                    pe.Stroke(linewidth=4, foreground=(0, 0, 0, .75)),
+                    pe.Normal()]
+            ))
+            names.append(name)
+    ax.legend(lines, names)
+
+
 class Feature:
     def __init__(self, id, cutout_corner, cutout, data_cutout, seed_cutout,
                  flag=Flag.GOOD, feature_class=None):
@@ -54,33 +77,30 @@ class Feature:
     def is_good(self):
         return self.flag == Flag.GOOD
     
-    def plot_onto(self, ax, ids=False, legend=False):
+    def plot_onto(self, ax, ids=False, legend=False, label_flag=False):
         r, c = np.nonzero(self.cutout)
         r += self.cutout_corner[0]
         c += self.cutout_corner[1]
-        colors = {Flag.GOOD: ((.2, 1, .2, .8), "OK"),
-                  Flag.FALSE_POS: ((1, .1, .1, .8), "False +"),
-                  Flag.CLOSE_NEIGHBOR: ((1, 1, 1, .8), "Proximity"),
-                  Flag.EDGE: ((.1, .1, 1, .8), "Edge"),
-                  Flag.TOO_SMALL: ((.1, 1, 1, .8), "Size"),
-                  Flag.TOO_BIG: ((.1, 1, 1, .8), ""),
-                  Flag.TOO_LONG: ((.1, 1, 1, .8), "")}
-        color = colors[self.flag][0]
+        color = COLORS[self.flag][0]
         db_analysis.outline_BP(r, c, scale=1, line_color=color, ax=ax)
+        text_pieces = []
         if ids:
-            plt.text(np.mean(c), np.mean(r), self.id, color=color,
-                     path_effects=[
-                     pe.Stroke(linewidth=1, foreground='k'),
-                     pe.Normal()],)
+            text_pieces.append(str(self.id))
+        if label_flag:
+            text_pieces.append(str(self.flag))
+        if text_pieces:
+            ax.text(np.mean(c), np.mean(r), " ".join(text_pieces),
+                    color=color,
+                    # Ensure the text isn't drawn outside the axis bounds
+                    clip_on=True,
+                    path_effects=[
+                        pe.Stroke(linewidth=1, foreground='k'),
+                        pe.Normal()
+                ])
+        
         if legend:
-            lines = []
-            names = []
-            for color, name in colors.values():
-                if name:
-                    lines.append(Line2D([0], [0], color=color))
-                    names.append(name)
-            ax.legend(lines, names)
-    
+            _draw_color_legend(ax)
+
     def plot(self, ax=None, **kwargs):
         if ax is None:
             ax = plt.gca()
@@ -200,9 +220,11 @@ class TrackedImage:
             feature.id += my_max_id
             self.add_features(feature)
     
-    def plot_features_onto(self, ax, **kwargs):
+    def plot_features_onto(self, ax, legend=False, **kwargs):
         for feature in self.features:
             feature.plot_onto(ax, **kwargs)
+        if legend:
+            _draw_color_legend(ax)
     
     def plot_features(self, ax=None, **kwargs):
         if ax is None:
