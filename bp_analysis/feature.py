@@ -63,6 +63,10 @@ class Feature:
         rs += self.cutout_corner[0]
         cs += self.cutout_corner[1]
         return rs, cs
+    
+    @property
+    def size(self):
+        return np.sum(self.cutout)
 
     @property
     @functools.cache
@@ -131,7 +135,8 @@ class Feature:
         return self.cutout_corner[0] + self.cutout.shape[0]
     
     def __repr__(self):
-        return f"<Feature {self.id}>"
+        return (f"<Feature {self.id}, {repr(self.flag)}, {self.size} px, "
+                f"@{self.cutout_corner}>")
 
 
 class FeatureSequence:
@@ -175,7 +180,9 @@ class FeatureSequence:
         feature.sequence = None
     
     def __repr__(self):
-        return f"<FeatureSequence {self.id}>"
+        return (f"<FeatureSequence {self.id}, {len(self.features)} "
+                f"{repr(self.feature_flag)} feats, {repr(self.flag)}, "
+                f"{repr(self.origin)} to {repr(self.fate)}>")
 
 
 class TrackedImage:
@@ -185,6 +192,9 @@ class TrackedImage:
         self.source_shape = source_shape
         self.time = time
         self.config = config
+    
+    def __repr__(self):
+        return f"<TrackedImage, t={self.time}, {len(self.features)} features>"
     
     def add_features(self, *features):
         for feature in features:

@@ -225,3 +225,6 @@ class TrackedImageSet:
     def add_sequences(self, *sequences):
         for sequence in sequences:
             self.sequences.append(sequence)
+    
+    def __repr__(self):
+        return f"<TrackedImageSet with {len(self.sequences)} sequences>"
