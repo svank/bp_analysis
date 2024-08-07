@@ -8,22 +8,27 @@ import numpy as np
 import scipy.ndimage
 
 from . import db_analysis
-from .status import Flag, Event
+from .status import Flag, Event, SequenceFlag
 
 
+# Text is legend labels
 COLORS = {Flag.GOOD: ((.2, 1, .2, .8), "OK"),
           Flag.FALSE_POS: ((1, .1, .1, .8), "False pos"),
           Flag.CLOSE_NEIGHBOR: ((1, 1, 1, .8), "Proximity"),
           Flag.EDGE: ((.1, .1, 1, .8), "Edge"),
           Flag.TOO_SMALL: ((.1, 1, 1, .8), "Size"),
           Flag.TOO_BIG: ((.1, 1, 1, .8), ""),
-          Flag.TOO_LONG: ((.1, 1, 1, .8), "")}
+          Flag.TOO_LONG: ((.1, 1, 1, .8), ""),
+          SequenceFlag.TOO_SHORT: ((1, .1, 1, .8), "Short-lived"),
+          }
+SIMPLE_COLORS = {True: ((.1, 1, .1, .8), "OK"),
+                 False: ((.1, .1, 1, .8), "Rejected")}
 
 
-def _draw_color_legend(ax):
+def _draw_color_legend(ax, simple_colors=False):
     lines = []
     names = []
-    for color, name in COLORS.values():
+    for color, name in (SIMPLE_COLORS if simple_colors else COLORS).values():
         if name:
             lines.append(Line2D(
                 [0], [0], color=color[:3], lw=3, path_effects=[
@@ -81,17 +86,27 @@ class Feature:
     def is_good(self):
         return self.flag == Flag.GOOD
     
-    def plot_onto(self, ax, ids=False, legend=False, label_flag=False):
+    def plot_onto(self, ax, ids=False, legend=False, label_flag=False,
+                  label_seq_flag=False, simple_colors=False):
         r, c = np.nonzero(self.cutout)
         r += self.cutout_corner[0]
         c += self.cutout_corner[1]
-        color = COLORS[self.flag][0]
+        if simple_colors:
+            color = SIMPLE_COLORS[self.is_good][0]
+        else:
+            color = COLORS[self.flag][0]
+            if (self.is_good and self.sequence is not None
+                    and self.sequence.flag == SequenceFlag.TOO_SHORT):
+                color = COLORS[SequenceFlag.TOO_SHORT][0]
+        
         db_analysis.outline_BP(r, c, scale=1, line_color=color, ax=ax)
         text_pieces = []
         if ids:
             text_pieces.append(str(self.id))
-        if label_flag:
+        if label_flag and self.flag != Flag.GOOD:
             text_pieces.append(str(self.flag))
+        if label_seq_flag and self.sequence.flag != SequenceFlag.GOOD:
+            text_pieces.append(str(self.sequence.flag))
         if text_pieces:
             ax.text(np.mean(c), np.mean(r), " ".join(text_pieces),
                     color=color,
@@ -103,7 +118,7 @@ class Feature:
                 ])
         
         if legend:
-            _draw_color_legend(ax)
+            _draw_color_legend(ax, simple_colors=simple_colors)
 
     def plot(self, ax=None, **kwargs):
         if ax is None:
@@ -234,7 +249,8 @@ class TrackedImage:
         for feature in self.features:
             feature.plot_onto(ax, **kwargs)
         if legend:
-            _draw_color_legend(ax)
+            simple_colors = kwargs.get('simple_colors', False)
+            _draw_color_legend(ax, simple_colors=simple_colors)
     
     def plot_features(self, ax=None, **kwargs):
         if ax is None:
