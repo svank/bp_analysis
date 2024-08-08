@@ -62,6 +62,8 @@ def get_n_rounds_dilation(config):
 def dilate(config, *args, **kwargs):
     method = config.get("dilation_method", "laplacian")
     if method == "laplacian":
+        if '_region_rounds_override' in kwargs:
+            del kwargs['_region_rounds_override']
         return dilate_laplacian(config, *args, **kwargs)
     elif method == "contour":
         if 'laplacian' in kwargs:
@@ -93,7 +95,7 @@ def dilate_laplacian(config, seeds, im=None, laplacian=None, mask=None,
     return seeds
 
 
-def dilate_contour(config, seeds, im, n_rounds=None):
+def dilate_contour(config, seeds, im, n_rounds=None, _region_rounds_override=0):
     if n_rounds is None:
         n_rounds = get_n_rounds_dilation(config)
     req_downhill = config.getboolean('contour_require_downhill', True)
@@ -137,7 +139,7 @@ def dilate_contour(config, seeds, im, n_rounds=None):
         for id in ids_to_expand:
             rs, cs = coord_map[id]
             rmin, rmax, cmin, cmax = _feat_neighborhood(
-                    rs, cs, im, min_finding_scale * n_rounds)
+                rs, cs, im, min_finding_scale * (n_rounds + _region_rounds_override))
             region = im[rmin:rmax, cmin:cmax]
             if contour_lower_thresh is not None:
                 region = region[region > contour_lower_thresh]
@@ -258,8 +260,10 @@ def remove_false_positives(labeled_feats, laplacian, config, im, seeds,
     """
     # Dilate normally but with an extra round to see what would have been added
     # to each feature
-    masked_dilation = dilate(config, seeds, im=im,
-            laplacian=laplacian, n_rounds=1+get_n_rounds_dilation(config))
+    masked_dilation = dilate(
+        config, seeds, im=im,
+        laplacian=laplacian, n_rounds=1+get_n_rounds_dilation(config),
+        _region_rounds_override=-1)
     # Dilate the existing features without restrictions to see how many pixels
     # surround each feature. As we just need to expand the feature uniformly,
     # it doesn't matter which dilation method we use.
