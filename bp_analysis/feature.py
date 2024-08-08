@@ -87,7 +87,8 @@ class Feature:
         return self.flag == Flag.GOOD
     
     def plot_onto(self, ax, ids=False, legend=False, label_flag=False,
-                  label_seq_flag=False, simple_colors=False):
+                  label_seq_flag=False, simple_colors=False,
+                  label_on_click=True):
         r, c = np.nonzero(self.cutout)
         r += self.cutout_corner[0]
         c += self.cutout_corner[1]
@@ -105,7 +106,8 @@ class Feature:
             text_pieces.append(str(self.id))
         if label_flag and self.flag != Flag.GOOD:
             text_pieces.append(str(self.flag))
-        if label_seq_flag and self.sequence.flag != SequenceFlag.GOOD:
+        if (label_seq_flag and self.sequence is not None
+                and self.sequence.flag != SequenceFlag.GOOD):
             text_pieces.append(str(self.sequence.flag))
         if text_pieces:
             ax.text(np.mean(c), np.mean(r), " ".join(text_pieces),
@@ -116,6 +118,14 @@ class Feature:
                         pe.Stroke(linewidth=1, foreground='k'),
                         pe.Normal()
                 ])
+            
+        if label_on_click:
+            text = f"{self.id} {self.flag}"
+            if (self.sequence is not None
+                    and self.sequence.flag != SequenceFlag.GOOD):
+                text += f" {self.sequence.flag}"
+            self.manager = FeatureClickManager(text, *self.indices, color, ax)
+            self.manager.connect()
         
         if legend:
             _draw_color_legend(ax, simple_colors=simple_colors)
@@ -152,6 +162,45 @@ class Feature:
     def __repr__(self):
         return (f"<Feature {self.id}, {repr(self.flag)}, {self.size} px, "
                 f"@{self.cutout_corner}>")
+
+
+class FeatureClickManager:
+    def __init__(self, text, rs, cs, color, ax):
+        self.text = text
+        self.coords = set(zip(cs, rs))
+        self.text_y = np.mean(rs)
+        self.text_x = np.max(cs) + 2
+        self.color = color
+        self.ax = ax
+        
+        self.artist = None
+    
+    def connect(self):
+        self.ax.figure.canvas.mpl_connect('button_release_event', self.onclick)
+    
+    def onclick(self, event):
+        try:
+            if event.inaxes != self.ax:
+                return
+            x = int(np.round(event.xdata))
+            y = int(np.round(event.ydata))
+            if (x, y) not in self.coords:
+                return
+            if self.artist is None:
+                self.artist = self.ax.text(
+                    self.text_x, self.text_y, self.text,
+                    color=self.color,
+                    # Ensure the text isn't drawn outside the axis bounds
+                    clip_on=True,
+                    path_effects=[
+                        pe.Stroke(linewidth=1, foreground='k'),
+                        pe.Normal()
+                ])
+            else:
+                self.artist.remove()
+                self.artist = None
+        except Exception as e:
+            self.ax.set_ylabel(e)
 
 
 class FeatureSequence:
