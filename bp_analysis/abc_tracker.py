@@ -100,10 +100,11 @@ def dilate_contour(config, seeds, im, n_rounds=None, _region_rounds_override=0):
         n_rounds = get_n_rounds_dilation(config)
     req_downhill = config.getboolean('contour_require_downhill', True)
     thresh = config.getfloat('contour_threshold', 0.5)
-    min_finding_scale = config.getfloat('contour_min_finding_scale', 3)
+    if not (min_region_size := config.getint('contour_min_finding_size', 0)):
+        min_region_size = config.getfloat('contour_min_finding_scale', 3)
+        min_region_size *= (n_rounds + _region_rounds_override)
     max_intensity_range = config.getfloat('contour_max_intensity_range', 999)
     contour_lower_thresh = config.getfloat('contour_lower_thresh', None)
-    
     struc = gen_kernel(config.getboolean('connect_diagonal', True))
     labeled_feats_original, n_feats = scipy.ndimage.label(
             seeds != 0, struc)
@@ -114,8 +115,6 @@ def dilate_contour(config, seeds, im, n_rounds=None, _region_rounds_override=0):
     coord_map = gen_coord_map(labeled_feats_original)
     
     ids_to_expand = list(coord_map.keys())
-    
-    max_values = {id: im[coord_map[id]].max() for id in ids_to_expand}
     
     if config.get('contour_max_intensity_mode', 'relative') == 'relative':
         max_intensity_range *= im.mean()
@@ -134,53 +133,27 @@ def dilate_contour(config, seeds, im, n_rounds=None, _region_rounds_override=0):
     dir_r, dir_c = np.nonzero(struc)
     directions = List(zip(dir_r - 1, dir_c - 1))
     
-    while True:
-        to_expand = List()
-        for id in ids_to_expand:
-            rs, cs = coord_map[id]
-            rmin, rmax, cmin, cmax = _feat_neighborhood(
-                rs, cs, im, min_finding_scale * (n_rounds + _region_rounds_override))
-            region = im[rmin:rmax, cmin:cmax]
-            if contour_lower_thresh is not None:
-                region = region[region > contour_lower_thresh]
-            feat_min = np.min(region)
-            feat_max = max_values[id]
-            if feat_max - feat_min > max_intensity_range:
-                feat_max = feat_min + max_intensity_range
-                max_is_clamped = True
-            else:
-                max_is_clamped = False
-            # All the type-casting here is to satisfy numba
-            rs = List(rs.astype(int))
-            cs = List(cs.astype(int))
-            to_expand.append((rs, cs, feat_min, feat_max, max_is_clamped))
-        
-        labeled_feats, needs_redo = _dilate_contour_inner(
-                labeled_feats_original.copy(), im, to_expand, directions,
-                n_rounds, req_downhill, thresh)
-        
-        if len(needs_redo):
-            # These features need to be re-done, because (at least) one of the
-            # pixels dilated to was brighter than any of the seed pixels,
-            # invalidating the contour of the final feature.
-            # Let's update our recorded per-feature maximum values. (Note that
-            # if dilation had to cross a relatively dark area to reach this
-            # bright pixel, it's possible that raising the max value and thus
-            # the contour will mean the expanded feature never reaches its the
-            # nominal maximum value we're setting here. That's weird but
-            # acceptable, I think.)
-            for r, c, id in needs_redo:
-                value = im[r, c]
-                if value > max_values[id]:
-                    max_values[id] = value
-            
-            # We could think about just removing feature pixels that fall
-            # outside the new contour, but what if those pixels would otherwise
-            # have been grabbed by a different feature? It's more robust to
-            # just re-do the whole dilation. So let's let the loop repeat and
-            # re-do the dilation without updated max_values.
-        else:
-            break
+    to_expand = List()
+    for id in ids_to_expand:
+        rs, cs = coord_map[id]
+        rmin, rmax, cmin, cmax = _feat_neighborhood(
+            rs, cs, im, min_region_size)
+        region = im[rmin:rmax, cmin:cmax]
+        if contour_lower_thresh is not None:
+            region = region[region > contour_lower_thresh]
+        feat_min = np.min(region)
+        feat_max = np.max(region)
+        if feat_max - feat_min > max_intensity_range:
+            feat_max = feat_min + max_intensity_range
+        # All the type-casting here is to satisfy numba
+        rs = List(rs.astype(int))
+        cs = List(cs.astype(int))
+        to_expand.append((rs, cs, feat_min, feat_max))
+    
+    labeled_feats = _dilate_contour_inner(
+            labeled_feats_original.copy(), im, to_expand, directions,
+            n_rounds, req_downhill, thresh)
+    
     return labeled_feats > 0
 
 
@@ -196,13 +169,12 @@ def _feat_neighborhood(rs, cs, im, window_size):
 @numba.njit(cache=True)
 def _dilate_contour_inner(feats, im, to_expand, directions, n_rounds,
         req_downhill, thresh):
-    needs_redo = List()
     # This loop is its own function so it can be compiled by numba
     for i in range(n_rounds):
         expanding = to_expand
         to_expand = List()
         # Loop over each feature
-        for rs, cs, feat_min, feat_max, max_is_clamped in expanding:
+        for rs, cs, feat_min, feat_max in expanding:
             new_rs, new_cs = List(), List()
             # Loop over each coord in the feature
             for r, c in zip(rs, cs):
@@ -226,16 +198,11 @@ def _dilate_contour_inner(feats, im, to_expand, directions, n_rounds,
                     feats[r+dr, c+dc] = feats[r, c]
                     new_rs.append(r + dr)
                     new_cs.append(c + dc)
-                    # Check if this changes our "feature maximum" brightness.
-                    # (This is unlikely, but can happen when strictly-downhill
-                    # expansion isn't required.)
-                    if not max_is_clamped and target > feat_max:
-                        needs_redo.append((r+dr, c+dc, feats[r, c]))
             
             if len(new_rs):
                 to_expand.append(
-                        (new_rs, new_cs, feat_min, feat_max, max_is_clamped))
-    return feats, needs_redo
+                        (new_rs, new_cs, feat_min, feat_max))
+    return feats
 
 
 def remove_edge_touchers(labeled_feats, tracked_image):

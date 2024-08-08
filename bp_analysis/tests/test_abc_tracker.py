@@ -287,6 +287,28 @@ def test_dilate_contour_min_finding_scale(basic_contour_config, contour_image):
     np.testing.assert_array_equal(dilated_seeds, expected)
 
 
+def test_dilate_contour_min_finding_size(basic_contour_config, contour_image):
+    basic_contour_config['contour_min_finding_scale'] = '99999'
+    basic_contour_config['contour_min_finding_size'] = '2'
+    
+    contour_image[3, 0] = -.5
+    contour_image[4, 6] = .59
+    contour_image[5, 6] = .61
+    contour_image[4, 7] = 0
+    
+    seeds = contour_image >= 1
+    dilated_seeds = abc_tracker.dilate(
+        basic_contour_config, seeds, im=contour_image)
+    expected = contour_image > .6
+    np.testing.assert_array_equal(dilated_seeds, expected)
+    
+    basic_contour_config['contour_min_finding_size'] = '3'
+    dilated_seeds = abc_tracker.dilate(
+        basic_contour_config, seeds, im=contour_image)
+    expected = contour_image > 0
+    np.testing.assert_array_equal(dilated_seeds, expected)
+
+
 def test_dilate_contour_max_intensity_range(
         basic_contour_config, contour_image):
     basic_contour_config['contour_max_intensity_range'] = '2'
