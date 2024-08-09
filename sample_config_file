@@ -1,0 +1,42 @@
+[main]
+also_id_negative = false
+subtract_data_min = true
+connect_diagonal = true
+trim_image = 0
+
+[seeds]
+n_sigma = 3
+use_laplacian = true
+mode = 'relative'
+threshold = 1000
+
+[dilation]
+rounds = 3
+method = 'contour'
+
+[dilation-contour]
+require_downhill = true
+threshold = 0.5
+min_finding_size = 0
+min_finding_scale = 3
+max_intensity_mode = 'relative'
+max_intensity_range = 9999
+lower_thresh = nan
+
+[false-pos-filter]
+threshold = 0.2
+
+[proximity-filter]
+threshold = 4
+
+[size-filter]
+min_size = 4
+max_size = 110
+max_diagonal = 20
+
+[size-change-filter]
+max_size_change_pct = 50
+max_size_change_px = 10
+
+[lifetime-filter]
+min_lifetime = 1

@@ -1,22 +1,24 @@
-import configparser
 import datetime
+import tomllib
 
 import numpy as np
 
 from .feature import FeatureSequence, TrackedImage
 from .status import Event, SequenceFlag
+from .tracking_utils import get_cfg
 
 
 def link_features(tracked_images: list[TrackedImage],
                   config_file) -> "TrackedImageSet":
-    if isinstance(config_file, configparser.SectionProxy):
-        config = config_file
+    if isinstance(config_file, str):
+        with open(config_file, 'rb') as f:
+            config = tomllib.load(f)
     else:
-        config = configparser.ConfigParser()
-        config.read(config_file)
-        config = config['main']
-    max_size_change_pct = config.getfloat('max_size_change_pct', 50)
-    max_size_change_px = config.getint('max_size_change_px', 10)
+        config = config_file
+    max_size_change_pct = get_cfg(
+        config, 'size-change-filter', 'max_size_change_pct', 50)
+    max_size_change_px = get_cfg(
+        config, 'size-change-filter', 'max_size_change_px', 10)
     
     #
     ## Stage 1: Linking features together
@@ -182,7 +184,7 @@ def link_features(tracked_images: list[TrackedImage],
     ## Stage 3: Filtering the sequences
     #
     
-    min_lifetime = config.getint('min_lifetime', 5)
+    min_lifetime = get_cfg(config, 'lifetime-filter', 'min_lifetime', 5)
     for sequence in feature_sequences:
         if len(sequence.features) < min_lifetime:
             sequence.flag = SequenceFlag.TOO_SHORT

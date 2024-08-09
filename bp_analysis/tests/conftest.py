@@ -1,4 +1,4 @@
-import configparser
+import tomllib
 
 import numpy as np
 import pytest
@@ -48,31 +48,41 @@ def map_with_features(feature_details_for_map):
 
 @pytest.fixture
 def basic_config():
-    config = configparser.ConfigParser()
-    config.read_string("""
+    config = tomllib.loads("""
         [main]
-        blur = 0
-        dilation_method = contour
-        contour_require_downhill = False
-        contour_threshold = 0.65
-        contour_min_finding_scale = 1
-        contour_max_intensity_range = 1.2
-        dilation_rounds = 9
-        connect_diagonal = False
-        fpos_thresh = 0.2
-        proximity_thresh = 2
-
+        connect_diagonal = false
+        
+        [seeds]
         n_sigma = 7.5
-        seed_use_laplacian = True
-        seed_mode = relative
+        use_laplacian = true
+        mode = 'relative'
+        
+        [dilation]
+        method = 'contour'
+        rounds = 9
+        
+        [dilation-contour]
+        require_downhill = false
+        threshold = 0.65
+        min_finding_scale = 1
+        max_intensity_range = 1.2
+        
+        [false-pos-filter]
+        threshold = 0.2
+        
+        [proximity-filter]
+        threshold = 2
 
+        [size-filter]
         min_size = 10
         max_size = 1000
         max_diagonal = 30
+        
+        [size-change-filter]
         max_size_change_pct = 50
         max_size_change_px = 10
         
+        [lifetime-filter]
         min_lifetime = 1
     """)
-    config = config['main']
     return config

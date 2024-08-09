@@ -731,8 +731,8 @@ def test_sequence_break_on_flag_change_complex(basic_config):
 
 
 def test_sequence_break_on_size_change_pct(basic_config):
-    basic_config['max_size_change_px'] = '999'
-    basic_config['max_size_change_pct'] = '49'
+    basic_config['size-change-filter']['max_size_change_px'] = 999
+    basic_config['size-change-filter']['max_size_change_pct'] = 49
     img = np.ones((1, 4))
     img2 = np.ones((1, 6))
     img3 = np.ones((1, 3))
@@ -786,8 +786,8 @@ def test_sequence_break_on_size_change_pct(basic_config):
 
 
 def test_sequence_break_on_size_change_px(basic_config):
-    basic_config['max_size_change_px'] = '4'
-    basic_config['max_size_change_pct'] = '999'
+    basic_config['size-change-filter']['max_size_change_px'] = 4
+    basic_config['size-change-filter']['max_size_change_pct'] = 999
     img = np.ones((1, 30))
     img2 = np.ones((1, 35))
     feature1 = Feature(1, (5, 10), img, img, img)
@@ -840,7 +840,7 @@ def test_sequence_break_on_size_change_px(basic_config):
 
 
 def test_min_lifetime(basic_config):
-    basic_config['min_lifetime'] = '2'
+    basic_config['lifetime-filter']['min_lifetime'] = 2
     img = np.ones((2, 2))
     featureA1 = Feature(1, (5, 10), img, img, img)
     

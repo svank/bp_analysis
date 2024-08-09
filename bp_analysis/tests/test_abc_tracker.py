@@ -43,7 +43,7 @@ def test_find_seeds(basic_config):
     
     n_sigma = (laplacian[29, 29] - mean) / std
     
-    basic_config['n_sigma'] = str(n_sigma - .1)
+    basic_config['seeds']['n_sigma'] = n_sigma - .1
     
     seeds, laplacian = abc_tracker.find_seeds(image, basic_config)
     
@@ -53,7 +53,7 @@ def test_find_seeds(basic_config):
     
     # Adjust the n_sigma parameter to just above what it needs to be, so there
     # will be no seeds
-    basic_config['n_sigma'] = str(n_sigma + .1)
+    basic_config['seeds']['n_sigma'] = n_sigma + .1
     
     seeds, laplacian = abc_tracker.find_seeds(image, basic_config)
     
@@ -61,10 +61,10 @@ def test_find_seeds(basic_config):
 
 
 def test_find_seeds_absolute_thresh(basic_config):
-    basic_config['seed_mode'] = 'absolute'
+    basic_config['seeds']['mode'] = 'absolute'
     # n.b. because the default laplacian kernel isn't normalized, this is 8
     # times higher than it "should" be
-    basic_config['seed_thresh'] = '8.08'
+    basic_config['seeds']['threshold'] = 8.08
     
     # There are no seeds in this rather flat image
     np.random.seed(1)
@@ -85,10 +85,10 @@ def test_find_seeds_absolute_thresh(basic_config):
 
 
 def test_find_seeds_no_laplacian(basic_config):
-    basic_config['seed_use_laplacian'] = 'False'
+    basic_config['seeds']['use_laplacian'] = False
     # Just easier to test in absolute mode
-    basic_config['seed_mode'] = 'absolute'
-    basic_config['seed_thresh'] = '1.01'
+    basic_config['seeds']['mode'] = 'absolute'
+    basic_config['seeds']['threshold'] = 1.01
     
     # There are no seeds in this rather flat image
     np.random.seed(1)
@@ -109,9 +109,9 @@ def test_find_seeds_no_laplacian(basic_config):
 
 
 def test_dilate_laplacian(basic_config):
-    basic_config['dilation_method'] = 'laplacian'
-    basic_config['dilation_rounds'] = '1'
-    basic_config['connect_diagonal'] = 'True'
+    basic_config['dilation']['method'] = 'laplacian'
+    basic_config['dilation']['rounds'] = 1
+    basic_config['main']['connect_diagonal'] = True
     
     image = np.zeros((50, 50))
     image[29:34, 29:34] = .6
@@ -130,7 +130,7 @@ def test_dilate_laplacian(basic_config):
     np.testing.assert_array_equal(dilated_seeds, 0)
     
     # Add another round
-    basic_config['dilation_rounds'] = '2'
+    basic_config['dilation']['rounds'] = 2
     
     dilated_seeds = abc_tracker.dilate(basic_config, seeds, im=image)
     np.testing.assert_array_equal(dilated_seeds[28:33, 28:33], 1)
@@ -138,7 +138,7 @@ def test_dilate_laplacian(basic_config):
     np.testing.assert_array_equal(dilated_seeds, 0)
     
     # Pass that extra round explicitly
-    basic_config['dilation_rounds'] = '1'
+    basic_config['dilation']['rounds'] = 1
     
     dilated_seeds = abc_tracker.dilate(basic_config, seeds, im=image, n_rounds=2)
     np.testing.assert_array_equal(dilated_seeds[28:33, 28:33], 1)
@@ -147,9 +147,9 @@ def test_dilate_laplacian(basic_config):
 
 
 def test_dilate_laplacian_masked(basic_config):
-    basic_config['dilation_method'] = 'laplacian'
-    basic_config['dilation_rounds'] = '1'
-    basic_config['connect_diagonal'] = 'True'
+    basic_config['dilation']['method'] = 'laplacian'
+    basic_config['dilation']['rounds'] = 1
+    basic_config['main']['connect_diagonal'] = True
     
     mask = np.zeros((50, 50))
     mask[30:32, 31] = 1
@@ -164,9 +164,9 @@ def test_dilate_laplacian_masked(basic_config):
     
 
 def test_dilate_laplacian_provided_laplacian(basic_config):
-    basic_config['dilation_method'] = 'laplacian'
-    basic_config['dilation_rounds'] = '1'
-    basic_config['connect_diagonal'] = 'True'
+    basic_config['dilation']['method'] = 'laplacian'
+    basic_config['dilation']['rounds'] = 1
+    basic_config['main']['connect_diagonal'] = True
     
     laplacian = np.zeros((50, 50))
     laplacian[30:32, 31] = 1
@@ -182,13 +182,13 @@ def test_dilate_laplacian_provided_laplacian(basic_config):
 
 @pytest.fixture
 def basic_contour_config(basic_config):
-    basic_config['dilation_method'] = 'contour'
-    basic_config['dilation_rounds'] = '1'
-    basic_config['connect_diagonal'] = 'True'
-    basic_config['contour_require_downhill'] = 'True'
-    basic_config['contour_threshold'] = '0.2'
-    basic_config['contour_min_finding_scale'] = '1'
-    basic_config['contour_max_intensity_range'] = '999'
+    basic_config['dilation']['method'] = 'contour'
+    basic_config['dilation']['rounds'] = 1
+    basic_config['main']['connect_diagonal'] = True
+    basic_config['dilation-contour']['require_downhill'] = True
+    basic_config['dilation-contour']['threshold'] = 0.2
+    basic_config['dilation-contour']['min_finding_scale'] = 1
+    basic_config['dilation-contour']['max_intensity_range'] = 999
     return basic_config
 
 
@@ -214,14 +214,14 @@ def test_dilate_contour(basic_contour_config, contour_image):
     np.testing.assert_array_equal(dilated_seeds, contour_image >= 1)
     
     # Add another round
-    basic_contour_config['dilation_rounds'] = '2'
+    basic_contour_config['dilation']['rounds'] = 2
     
     dilated_seeds = abc_tracker.dilate(
         basic_contour_config, seeds, im=contour_image)
     np.testing.assert_array_equal(dilated_seeds, contour_image >= .9)
     
     # Pass that extra round explicitly
-    basic_contour_config['dilation_rounds'] = '1'
+    basic_contour_config['dilation']['rounds'] = 1
     
     dilated_seeds = abc_tracker.dilate(
         basic_contour_config, seeds, im=contour_image, n_rounds=2)
@@ -229,8 +229,8 @@ def test_dilate_contour(basic_contour_config, contour_image):
 
 
 def test_dilate_contour_threshold(basic_contour_config, contour_image):
-    basic_contour_config['dilation_rounds'] = '2'
-    basic_contour_config['contour_threshold'] = '.33'
+    basic_contour_config['dilation']['rounds'] = 2
+    basic_contour_config['dilation-contour']['threshold'] = .33
     
     seeds = contour_image > 1
     dilated_seeds = abc_tracker.dilate(
@@ -240,8 +240,8 @@ def test_dilate_contour_threshold(basic_contour_config, contour_image):
 
 def test_dilate_contour_require_downhill(
         basic_contour_config, contour_image):
-    basic_contour_config['dilation_rounds'] = '2'
-    basic_contour_config['contour_require_downhill'] = 'True'
+    basic_contour_config['dilation']['rounds'] = 2
+    basic_contour_config['dilation-contour']['require_downhill'] = True
     
     seeds = contour_image > 1
     contour_image[contour_image == .9] = 1.1
@@ -250,14 +250,14 @@ def test_dilate_contour_require_downhill(
     expected = (contour_image >= 1) * (contour_image != 1.1)
     np.testing.assert_array_equal(dilated_seeds, expected)
     
-    basic_contour_config['contour_require_downhill'] = 'False'
+    basic_contour_config['dilation-contour']['require_downhill'] = False
     dilated_seeds = abc_tracker.dilate(
         basic_contour_config, seeds, im=contour_image)
     np.testing.assert_array_equal(dilated_seeds, contour_image >= 1)
 
 
 def test_dilate_contour_min_finding_scale(basic_contour_config, contour_image):
-    basic_contour_config['contour_min_finding_scale'] = '2'
+    basic_contour_config['dilation-contour']['min_finding_scale'] = 2
     
     contour_image[3, 1] = -1
     contour_image[3, 0] = -2
@@ -270,8 +270,8 @@ def test_dilate_contour_min_finding_scale(basic_contour_config, contour_image):
     expected[2:6, 2:6] = contour_image[2:6, 2:6] > -.2
     np.testing.assert_array_equal(dilated_seeds, expected)
     
-    basic_contour_config['dilation_rounds'] = '2'
-    basic_contour_config['contour_min_finding_scale'] = '1'
+    basic_contour_config['dilation']['rounds'] = 2
+    basic_contour_config['dilation-contour']['min_finding_scale'] = 1
     dilated_seeds = abc_tracker.dilate(
         basic_contour_config, seeds, im=contour_image)
     expected = np.zeros_like(contour_image, dtype=bool)
@@ -280,8 +280,8 @@ def test_dilate_contour_min_finding_scale(basic_contour_config, contour_image):
 
 
 def test_dilate_contour_min_finding_size(basic_contour_config, contour_image):
-    basic_contour_config['contour_min_finding_scale'] = '99999'
-    basic_contour_config['contour_min_finding_size'] = '2'
+    basic_contour_config['dilation-contour']['min_finding_scale'] = 99999
+    basic_contour_config['dilation-contour']['min_finding_size'] = 2
     
     contour_image[3, 0] = -.5
     contour_image[4, 6] = .59
@@ -294,7 +294,7 @@ def test_dilate_contour_min_finding_size(basic_contour_config, contour_image):
     expected = contour_image > .6
     np.testing.assert_array_equal(dilated_seeds, expected)
     
-    basic_contour_config['contour_min_finding_size'] = '3'
+    basic_contour_config['dilation-contour']['min_finding_size'] = 3
     dilated_seeds = abc_tracker.dilate(
         basic_contour_config, seeds, im=contour_image)
     expected = contour_image > 0
@@ -303,8 +303,8 @@ def test_dilate_contour_min_finding_size(basic_contour_config, contour_image):
 
 def test_dilate_contour_max_intensity_range(
         basic_contour_config, contour_image):
-    basic_contour_config['contour_max_intensity_range'] = '2'
-    basic_contour_config['contour_max_intensity_mode'] = 'absolute'
+    basic_contour_config['dilation-contour']['max_intensity_range'] = 2
+    basic_contour_config['dilation-contour']['max_intensity_mode'] = 'absolute'
     
     contour_image[3, 4] = 10
     
@@ -313,8 +313,8 @@ def test_dilate_contour_max_intensity_range(
         basic_contour_config, seeds, im=contour_image)
     np.testing.assert_array_equal(dilated_seeds, contour_image >= 1)
     
-    basic_contour_config['contour_max_intensity_mode'] = 'relative'
-    basic_contour_config['contour_max_intensity_range'] = '5'
+    basic_contour_config['dilation-contour']['max_intensity_mode'] = 'relative'
+    basic_contour_config['dilation-contour']['max_intensity_range'] = 5
     
     dilated_seeds = abc_tracker.dilate(
         basic_contour_config, seeds, im=contour_image)
@@ -323,7 +323,7 @@ def test_dilate_contour_max_intensity_range(
 
 def test_dilate_contour_lower_thresh(
         basic_contour_config, contour_image):
-    basic_contour_config['contour_lower_thresh'] = '-.001'
+    basic_contour_config['dilation-contour']['lower_thresh'] = -.001
     
     contour_image[3, 2] = -10
     
@@ -341,14 +341,14 @@ def test_filter_close_neighbors(basic_config):
     tracked_image.add_features_from_map(
         labeled_feats, labeled_feats, labeled_feats)
     
-    basic_config['proximity_thresh'] = '2'
+    basic_config['proximity-filter']['threshold'] = 2
     
     abc_tracker.filter_close_neighbors(
         labeled_feats, basic_config, tracked_image)
     for feat in tracked_image.features:
         assert feat.flag == Flag.GOOD
     
-    basic_config['proximity_thresh'] = '3'
+    basic_config['proximity-filter']['threshold'] = 3
     
     abc_tracker.filter_close_neighbors(
         labeled_feats, basic_config, tracked_image)
@@ -364,8 +364,8 @@ def test_remove_false_positives(basic_config):
     laplacian = np.zeros((20, 20))
     # Feature can grow along only one side
     laplacian[4:10, 5:10] = 1
-    basic_config['dilation_method'] = 'laplacian'
-    basic_config['fpos_thres'] = '.25'
+    basic_config['dilation']['method'] = 'laplacian'
+    basic_config['false-pos-filter']['threshold'] = .25
     
     tracked_image = feature.TrackedImage()
     tracked_image.add_features_from_map(
@@ -393,8 +393,8 @@ def test_filter_size(basic_config):
     # Too big by one pixel
     labeled_feats[5:10, 5:10] = 2
     
-    basic_config['min_size'] = '2'
-    basic_config['max_size'] = '24'
+    basic_config['size-filter']['min_size'] = 2
+    basic_config['size-filter']['max_size'] = 24
     
     tracked_image = feature.TrackedImage()
     tracked_image.add_features_from_map(
@@ -435,7 +435,7 @@ def test_filter_size_diagonal(basic_config):
     # Too big
     labeled_feats[10:15, 10:15] = 2
     
-    basic_config['max_diagonal'] = '4.5'
+    basic_config['size-filter']['max_diagonal'] = 4.5
     
     tracked_image = feature.TrackedImage()
     tracked_image.add_features_from_map(
@@ -451,11 +451,11 @@ def test_filter_size_diagonal(basic_config):
 def test_fully_process_one_image(
         basic_config, mocker, map_with_features, feature_details_for_map):
     
-    basic_config['seed_use_laplacian'] = "False"
-    basic_config['seed_mode'] = "absolute"
-    basic_config['seed_thresh'] = "1.9"
-    basic_config['dilation_rounds'] = "8"
-    basic_config['connect_diagonal'] = "True"
+    basic_config['seeds']['use_laplacian'] = False
+    basic_config['seeds']['mode'] = "absolute"
+    basic_config['seeds']['threshold'] = 1.9
+    basic_config['dilation']['rounds'] = 8
+    basic_config['main']['connect_diagonal'] = True
     
     mocker.patch("bp_analysis.abc_tracker.load_data",
                  return_value=(1, map_with_features))
@@ -484,7 +484,7 @@ def test_fully_process_one_image(
 
 
 def test_load_data_trim(basic_config, mocker):
-    basic_config['trim_image'] = "2"
+    basic_config['main']['trim_image'] = 2
     image = np.zeros((10, 10))
     image[:2] = 1
     image[-2:] = 1
