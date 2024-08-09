@@ -34,6 +34,7 @@ def calc_laplacian(image, kernel=None):
 def find_seeds(image, config, print_stats=True, **kwargs):
     n_sigma = config.getfloat('n_sigma', 3)
     if config.getboolean('seed_use_laplacian', True):
+def find_seeds(image, config, **kwargs):
         image = calc_laplacian(image, **kwargs)
         laplacian = image
     else:
@@ -41,9 +42,6 @@ def find_seeds(image, config, print_stats=True, **kwargs):
     
     mean = np.mean(image)
     std = np.std(image)
-    
-    if print_stats and laplacian is not None:
-        print('"Laplacian" has μ={:.4e}, σ={:.4e}, max={:.4e}, min={:.4e}'.format(mean, std, np.max(laplacian), np.min(laplacian)))
     
     if config.get('seed_mode', 'relative') == 'relative':
         seeds = image > (mean + n_sigma * std)
@@ -428,7 +426,7 @@ def fully_process_one_image(file, config) -> TrackedImage:
 def id_image(im, config, tracked_image, mask=None):
     if config.getboolean('subtract_data_min', True):
         im = im - im.min()
-    seeds, laplacian = find_seeds(im, print_stats=False, config=config)
+    seeds, laplacian = find_seeds(im, config=config)
     if seeds.shape != im.shape:
         seeds = np.pad(seeds, 1)
         laplacian = np.pad(laplacian, 1)

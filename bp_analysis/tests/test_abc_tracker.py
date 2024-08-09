@@ -24,16 +24,14 @@ def test_find_seeds(basic_config):
     np.random.seed(1)
     image = np.random.random((100, 100))
     
-    seeds, laplacian = abc_tracker.find_seeds(
-        image, basic_config, print_stats=False)
+    seeds, laplacian = abc_tracker.find_seeds(image, basic_config)
     
     np.testing.assert_array_equal(seeds, 0)
     
     # Create an obvious seed
     image[30, 30] = 100
     
-    seeds, laplacian = abc_tracker.find_seeds(
-        image, basic_config, print_stats=False)
+    seeds, laplacian = abc_tracker.find_seeds(image, basic_config)
     
     assert seeds[29, 29] == 1
     seeds[29, 29] = 0
@@ -47,8 +45,7 @@ def test_find_seeds(basic_config):
     
     basic_config['n_sigma'] = str(n_sigma - .1)
     
-    seeds, laplacian = abc_tracker.find_seeds(
-        image, basic_config, print_stats=False)
+    seeds, laplacian = abc_tracker.find_seeds(image, basic_config)
     
     assert seeds[29, 29] == 1
     seeds[29, 29] = 0
@@ -58,8 +55,7 @@ def test_find_seeds(basic_config):
     # will be no seeds
     basic_config['n_sigma'] = str(n_sigma + .1)
     
-    seeds, laplacian = abc_tracker.find_seeds(
-        image, basic_config, print_stats=False)
+    seeds, laplacian = abc_tracker.find_seeds(image, basic_config)
     
     np.testing.assert_array_equal(seeds, 0)
 
@@ -74,16 +70,14 @@ def test_find_seeds_absolute_thresh(basic_config):
     np.random.seed(1)
     image = np.random.random((100, 100))
     
-    seeds, laplacian = abc_tracker.find_seeds(
-        image, basic_config, print_stats=False)
+    seeds, laplacian = abc_tracker.find_seeds(image, basic_config)
     
     np.testing.assert_array_equal(seeds, 0)
     
     # Create a seed
     image[30, 30] = 2
     
-    seeds, laplacian = abc_tracker.find_seeds(
-        image, basic_config, print_stats=False)
+    seeds, laplacian = abc_tracker.find_seeds(image, basic_config)
     
     assert seeds[29, 29] == 1
     seeds[29, 29] = 0
@@ -100,16 +94,14 @@ def test_find_seeds_no_laplacian(basic_config):
     np.random.seed(1)
     image = np.random.random((100, 100))
     
-    seeds, laplacian = abc_tracker.find_seeds(
-        image, basic_config, print_stats=False)
+    seeds, laplacian = abc_tracker.find_seeds(image, basic_config)
     
     np.testing.assert_array_equal(seeds, 0)
     
     # Create a seed
     image[30, 30] = 1.02
     
-    seeds, laplacian = abc_tracker.find_seeds(
-        image, basic_config, print_stats=False)
+    seeds, laplacian = abc_tracker.find_seeds(image, basic_config)
     
     assert seeds[30, 30] == 1
     seeds[30, 30] = 0
