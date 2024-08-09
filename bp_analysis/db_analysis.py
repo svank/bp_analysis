@@ -118,12 +118,14 @@ def outline_BP(r, c, scale=16/1000, line_color=(1,1,1,.8),
     
     if ax is None:
         ax = plt.gca()
-    ax.plot(segments[:,1], segments[:,0], color=line_color,
-            linewidth=1.6*linewidth,
-            path_effects=[
-                pe.Stroke(linewidth=2.6*linewidth, foreground=outline_color),
-                pe.Normal()],
-            **kwargs)
+    line, = ax.plot(
+        segments[:, 1], segments[:, 0], color=line_color,
+        linewidth=1.6*linewidth,
+        path_effects=[
+            pe.Stroke(linewidth=2.6*linewidth, foreground=outline_color),
+            pe.Normal()],
+        **kwargs)
+    return line
 
 def calc_centroid_velocities(data, ok_ids=None, weight=True,
         # Default scale from px/s to cm/s for 16-km pixels

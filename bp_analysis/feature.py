@@ -84,7 +84,9 @@ class Feature:
     
     @property
     def is_good(self):
-        return self.flag == Flag.GOOD
+        return (self.flag == Flag.GOOD
+                and (self.sequence is None
+                     or self.sequence.flag == SequenceFlag.GOOD))
     
     def plot_onto(self, ax, ids=False, legend=False, label_flag=False,
                   label_seq_flag=False, simple_colors=False,
@@ -100,7 +102,7 @@ class Feature:
                     and self.sequence.flag == SequenceFlag.TOO_SHORT):
                 color = COLORS[SequenceFlag.TOO_SHORT][0]
         
-        db_analysis.outline_BP(r, c, scale=1, line_color=color, ax=ax)
+        line = db_analysis.outline_BP(r, c, scale=1, line_color=color, ax=ax)
         text_pieces = []
         if ids:
             text_pieces.append(str(self.id))
@@ -124,7 +126,7 @@ class Feature:
             if (self.sequence is not None
                     and self.sequence.flag != SequenceFlag.GOOD):
                 text += f" {self.sequence.flag}"
-            self.manager = FeatureClickManager(text, *self.indices, color, ax)
+            self.manager = FeatureClickManager(text, *self.indices, color, line)
             self.manager.connect()
         
         if legend:
@@ -165,21 +167,31 @@ class Feature:
 
 
 class FeatureClickManager:
-    def __init__(self, text, rs, cs, color, ax):
+    def __init__(self, text, rs, cs, color, artist):
         self.text = text
         self.coords = set(zip(cs, rs))
         self.text_y = np.mean(rs)
         self.text_x = np.max(cs) + 2
         self.color = color
-        self.ax = ax
+        self.line_artist = artist
+        self.ax = artist.axes
         
         self.artist = None
+        self.cid = None
     
     def connect(self):
-        self.ax.figure.canvas.mpl_connect('button_release_event', self.onclick)
+        self.cid = self.ax.figure.canvas.mpl_connect(
+            'button_release_event', self.onclick)
+    
+    def disconnect(self):
+        if self.cid is not None:
+            self.ax.figure.canvas.mpl_disconnect(self.cid)
+            self.cid = None
     
     def onclick(self, event):
         try:
+            if self.line_artist not in self.ax.lines:
+                self.disconnect()
             if event.inaxes != self.ax:
                 return
             x = int(np.round(event.xdata))
