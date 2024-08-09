@@ -31,10 +31,9 @@ def calc_laplacian(image, kernel=None):
     return scp.signal.convolve2d(image, kernel, mode='valid').astype(image.dtype)
 
 
-def find_seeds(image, config, print_stats=True, **kwargs):
-    n_sigma = config.getfloat('n_sigma', 3)
-    if config.getboolean('seed_use_laplacian', True):
 def find_seeds(image, config, **kwargs):
+    n_sigma = get_cfg(config, 'seeds', 'n_sigma', 3)
+    if get_cfg(config, 'seeds', 'use_laplacian', True):
         image = calc_laplacian(image, **kwargs)
         laplacian = image
     else:
@@ -43,7 +42,8 @@ def find_seeds(image, config, **kwargs):
     mean = np.mean(image)
     std = np.std(image)
     
-    if config.get('seed_mode', 'relative') == 'relative':
+    seed_mode = get_cfg(config, 'seeds', 'mode', 'relative')
+    if seed_mode == 'relative':
         seeds = image > (mean + n_sigma * std)
     elif config.get('seed_mode', 'relative') == 'absolute':
         seeds = image > config.getfloat('seed_thresh', 1000)

@@ -1,7 +1,9 @@
 import configparser
+import datetime
+
 import numpy as np
 
-from .feature import *
+from .feature import FeatureSequence, TrackedImage
 from .status import Event, SequenceFlag
 
 
@@ -193,7 +195,7 @@ def link_features(tracked_images: list[TrackedImage],
     
     for i, sequence in enumerate(feature_sequences):
         sequence.id = i + 1
-    tracked_image_set = TrackedImageSet()
+    tracked_image_set = TrackedImageSet(tracked_images)
     tracked_image_set.add_sequences(*feature_sequences)
     return tracked_image_set
 
@@ -219,12 +221,22 @@ def _walk_and_mark_as_complex(new_sequence):
 
 
 class TrackedImageSet:
-    def __init__(self):
+    def __init__(self, source_images):
         self.sequences: list[FeatureSequence] = []
+        self.tracked_images = source_images
     
     def add_sequences(self, *sequences):
         for sequence in sequences:
             self.sequences.append(sequence)
+    
+    def __getitem__(self, index):
+        for tracked_image in self.tracked_images:
+            if (isinstance(index, datetime.datetime)
+                    and index == tracked_image.time):
+                return tracked_image
+            if index == tracked_image.source_file:
+                return tracked_image
+        return self.tracked_images[index]
     
     def __repr__(self):
         return f"<TrackedImageSet with {len(self.sequences)} sequences>"
