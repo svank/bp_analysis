@@ -343,14 +343,14 @@ def filter_size(tracked_image: TrackedImage, config):
             feature.flag = Flag.TOO_BIG
             continue
         
-        if max_diagonal is not None:
+        if max_diagonal > 0:
             rmin = np.min(rs)
             cmin = np.min(cs)
             rmax = np.max(rs)
             cmax = np.max(cs)
             
             diagonal = np.sqrt((rmax - rmin) ** 2 + (cmax - cmin) ** 2)
-            if max_diagonal > 0 and diagonal > max_diagonal:
+            if diagonal > max_diagonal:
                 feature.flag = Flag.TOO_LONG
                 continue
 
