@@ -57,9 +57,11 @@ class FeaturePlottingMixin:
             
         if label_on_click:
             text = f"{self.id} {self.flag}"
-            if (self.sequence is not None
-                    and self.sequence.flag != SequenceFlag.GOOD):
-                text += f" {self.sequence.flag}"
+            if self.sequence is not None:
+                if self.sequence.flag != SequenceFlag.GOOD:
+                    text += f" {self.sequence.flag}"
+                text += f"\nSeq {self.sequence.id}, {self.sequence.origin}"
+                text += f" - {self.sequence.fate}"
             self.manager = FeatureClickManager(
                 text, *self.indices, color, outline_color, line)
             self.manager.connect()
@@ -109,7 +111,7 @@ class FeatureClickManager:
                 return
             if self.artist is None:
                 self.artist = self.ax.text(
-                    self.text_x, self.text_y, self.text,
+                    self.text_x, y, self.text,
                     color=self.color,
                     # Ensure the text isn't drawn outside the axis bounds
                     clip_on=True,
