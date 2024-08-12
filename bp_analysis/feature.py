@@ -97,7 +97,7 @@ class FeatureSequence:
         self.feature_flag = None
         self.flag = None
     
-    def __getitem__(self, item):
+    def __getitem__(self, item) -> "Feature":
         for feature in self.features:
             if feature is item:
                 return feature
@@ -196,7 +196,7 @@ class TrackedImage:
             map[feature.indices] = feature.id
         return map
     
-    def __getitem__(self, id):
+    def __getitem__(self, id) -> "Feature":
         for feature in self.features:
             if feature.id == id:
                 return feature

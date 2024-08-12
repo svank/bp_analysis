@@ -231,7 +231,7 @@ class TrackedImageSet:
         for sequence in sequences:
             self.sequences.append(sequence)
     
-    def __getitem__(self, index):
+    def __getitem__(self, index) -> TrackedImage:
         for tracked_image in self.tracked_images:
             if (isinstance(index, datetime.datetime)
                     and index == tracked_image.time):
