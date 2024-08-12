@@ -1,45 +1,15 @@
 from datetime import datetime
 import functools
 
-from matplotlib.lines import Line2D
-import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.ndimage
 
-from . import db_analysis
+from . import feature_plotting
 from .status import Flag, Event, SequenceFlag
 
 
-# Text is legend labels
-COLORS = {Flag.GOOD: ((.2, 1, .2, .8), "OK"),
-          Flag.FALSE_POS: ((1, .1, .1, .8), "False pos"),
-          Flag.CLOSE_NEIGHBOR: ((1, 1, 1, .8), "Proximity"),
-          Flag.EDGE: ((.1, .1, 1, .8), "Edge"),
-          Flag.TOO_SMALL: ((.1, 1, 1, .8), "Size"),
-          Flag.TOO_BIG: ((.1, 1, 1, .8), ""),
-          Flag.TOO_LONG: ((.1, 1, 1, .8), ""),
-          SequenceFlag.TOO_SHORT: ((1, .1, 1, .8), "Short-lived"),
-          }
-SIMPLE_COLORS = {True: ((.1, 1, .1, .8), "OK"),
-                 False: ((.1, .1, 1, .8), "Rejected")}
-
-
-def _draw_color_legend(ax, simple_colors=False):
-    lines = []
-    names = []
-    for color, name in (SIMPLE_COLORS if simple_colors else COLORS).values():
-        if name:
-            lines.append(Line2D(
-                [0], [0], color=color[:3], lw=3, path_effects=[
-                    pe.Stroke(linewidth=4, foreground=(0, 0, 0, .75)),
-                    pe.Normal()]
-            ))
-            names.append(name)
-    ax.legend(lines, names)
-
-
-class Feature:
+class Feature(feature_plotting.FeaturePlottingMixin):
     def __init__(self, id, cutout_corner, cutout, data_cutout, seed_cutout,
                  flag=Flag.GOOD, feature_class=None):
         self.id = id
@@ -88,56 +58,6 @@ class Feature:
                 and (self.sequence is None
                      or self.sequence.flag == SequenceFlag.GOOD))
     
-    def plot_onto(self, ax, ids=False, legend=False, label_flag=False,
-                  label_seq_flag=False, simple_colors=False,
-                  label_on_click=True):
-        r, c = np.nonzero(self.cutout)
-        r += self.cutout_corner[0]
-        c += self.cutout_corner[1]
-        if simple_colors:
-            color = SIMPLE_COLORS[self.is_good][0]
-        else:
-            color = COLORS[self.flag][0]
-            if (self.is_good and self.sequence is not None
-                    and self.sequence.flag == SequenceFlag.TOO_SHORT):
-                color = COLORS[SequenceFlag.TOO_SHORT][0]
-        
-        line = db_analysis.outline_BP(r, c, scale=1, line_color=color, ax=ax)
-        text_pieces = []
-        if ids:
-            text_pieces.append(str(self.id))
-        if label_flag and self.flag != Flag.GOOD:
-            text_pieces.append(str(self.flag))
-        if (label_seq_flag and self.sequence is not None
-                and self.sequence.flag != SequenceFlag.GOOD):
-            text_pieces.append(str(self.sequence.flag))
-        if text_pieces:
-            ax.text(np.mean(c), np.mean(r), " ".join(text_pieces),
-                    color=color,
-                    # Ensure the text isn't drawn outside the axis bounds
-                    clip_on=True,
-                    path_effects=[
-                        pe.Stroke(linewidth=1, foreground='k'),
-                        pe.Normal()
-                ])
-            
-        if label_on_click:
-            text = f"{self.id} {self.flag}"
-            if (self.sequence is not None
-                    and self.sequence.flag != SequenceFlag.GOOD):
-                text += f" {self.sequence.flag}"
-            self.manager = FeatureClickManager(text, *self.indices, color, line)
-            self.manager.connect()
-        
-        if legend:
-            _draw_color_legend(ax, simple_colors=simple_colors)
-
-    def plot(self, ax=None, **kwargs):
-        if ax is None:
-            ax = plt.gca()
-        self.plot_onto(ax, **kwargs)
-        ax.set_aspect('equal')
-    
     def overlaps(self, other: "Feature"):
         if self.left > other.right or other.left > self.right:
             return False
@@ -164,55 +84,6 @@ class Feature:
     def __repr__(self):
         return (f"<Feature {self.id}, {repr(self.flag)}, {self.size} px, "
                 f"@{self.cutout_corner}>")
-
-
-class FeatureClickManager:
-    def __init__(self, text, rs, cs, color, artist):
-        self.text = text
-        self.coords = set(zip(cs, rs))
-        self.text_y = np.mean(rs)
-        self.text_x = np.max(cs) + 2
-        self.color = color
-        self.line_artist = artist
-        self.ax = artist.axes
-        
-        self.artist = None
-        self.cid = None
-    
-    def connect(self):
-        self.cid = self.ax.figure.canvas.mpl_connect(
-            'button_release_event', self.onclick)
-    
-    def disconnect(self):
-        if self.cid is not None:
-            self.ax.figure.canvas.mpl_disconnect(self.cid)
-            self.cid = None
-    
-    def onclick(self, event):
-        try:
-            if self.line_artist not in self.ax.lines:
-                self.disconnect()
-            if event.inaxes != self.ax:
-                return
-            x = int(np.round(event.xdata))
-            y = int(np.round(event.ydata))
-            if (x, y) not in self.coords:
-                return
-            if self.artist is None:
-                self.artist = self.ax.text(
-                    self.text_x, self.text_y, self.text,
-                    color=self.color,
-                    # Ensure the text isn't drawn outside the axis bounds
-                    clip_on=True,
-                    path_effects=[
-                        pe.Stroke(linewidth=1, foreground='k'),
-                        pe.Normal()
-                ])
-            else:
-                self.artist.remove()
-                self.artist = None
-        except Exception as e:
-            self.ax.set_ylabel(e)
 
 
 class FeatureSequence:
@@ -311,7 +182,7 @@ class TrackedImage:
             feature.plot_onto(ax, **kwargs)
         if legend:
             simple_colors = kwargs.get('simple_colors', False)
-            _draw_color_legend(ax, simple_colors=simple_colors)
+            feature_plotting._draw_color_legend(ax, simple_colors=simple_colors)
     
     def plot_features(self, ax=None, **kwargs):
         if ax is None:
