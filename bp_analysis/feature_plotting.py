@@ -23,10 +23,12 @@ SIMPLE_COLORS = {True: ((.1, 1, .1, .8), "OK", 'k'),
 class FeaturePlottingMixin:
     def plot_onto(self, ax, ids=False, legend=False, label_flag=False,
                   label_seq_flag=False, simple_colors=False,
-                  label_on_click=True):
+                  label_on_click=True, offset=(0, 0)):
         r, c = np.nonzero(self.cutout)
         r += self.cutout_corner[0]
         c += self.cutout_corner[1]
+        r += offset[1]
+        c += offset[0]
         if simple_colors:
             color, _, outline_color = SIMPLE_COLORS[self.is_good]
         else:
