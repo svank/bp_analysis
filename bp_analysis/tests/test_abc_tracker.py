@@ -5,16 +5,16 @@ from .. import abc_tracker, feature
 from ..status import Flag
 
 
-def test_calc_laplacian():
+def test_calc_laplacian(basic_config):
     image = np.ones((3,3))
     image[1,1] = 3
-    laplacian = abc_tracker.calc_laplacian(image)
+    laplacian = abc_tracker.calc_laplacian(image, basic_config)
     assert laplacian.shape == (1,1)
     assert laplacian[0,0] == 16
     
     kernel = np.array([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]])
     kernel = kernel / 8
-    laplacian = abc_tracker.calc_laplacian(image, kernel)
+    laplacian = abc_tracker.calc_laplacian(image, basic_config, kernel)
     assert laplacian.shape == (1,1)
     assert laplacian[0,0] == 2
 
@@ -33,22 +33,25 @@ def test_find_seeds(basic_config):
     
     seeds, laplacian = abc_tracker.find_seeds(image, basic_config)
     
-    assert seeds[29, 29] == 1
-    seeds[29, 29] = 0
+    assert seeds[30, 30] == 1
+    seeds[30, 30] = 0
     np.testing.assert_array_equal(seeds, 0)
     
     # Adjust the n_sigma parameter to just less than it needs to be
-    mean = np.mean(laplacian)
-    std = np.std(laplacian)
+    # The calculation of the laplacian's mean and std doesn't include the
+    # padded edges
+    laplacian_trimmed = laplacian[1:-1, 1:-1]
+    mean = np.mean(laplacian_trimmed)
+    std = np.std(laplacian_trimmed)
     
-    n_sigma = (laplacian[29, 29] - mean) / std
+    n_sigma = (laplacian[30, 30] - mean) / std
     
     basic_config['seeds']['n_sigma'] = n_sigma - .1
     
     seeds, laplacian = abc_tracker.find_seeds(image, basic_config)
     
-    assert seeds[29, 29] == 1
-    seeds[29, 29] = 0
+    assert seeds[30, 30] == 1
+    seeds[30, 30] = 0
     np.testing.assert_array_equal(seeds, 0)
     
     # Adjust the n_sigma parameter to just above what it needs to be, so there
@@ -79,8 +82,8 @@ def test_find_seeds_absolute_thresh(basic_config):
     
     seeds, laplacian = abc_tracker.find_seeds(image, basic_config)
     
-    assert seeds[29, 29] == 1
-    seeds[29, 29] = 0
+    assert seeds[30, 30] == 1
+    seeds[30, 30] = 0
     np.testing.assert_array_equal(seeds, 0)
 
 
@@ -120,29 +123,26 @@ def test_dilate_laplacian(basic_config):
     
     seeds = np.zeros((50, 50), dtype=bool)
     seeds[31, 31] = 1
-    # Because the laplacian generated from the image will be one pixel smaller
-    # on each edge
-    seeds = seeds[1:-1, 1:-1]
     
     dilated_seeds = abc_tracker.dilate(basic_config, seeds, im=image)
-    np.testing.assert_array_equal(dilated_seeds[29:32, 29:32], 1)
-    dilated_seeds[29:32, 29:32] = 0
+    np.testing.assert_array_equal(dilated_seeds[30:33, 30:33], 1)
+    dilated_seeds[30:33, 30:33] = 0
     np.testing.assert_array_equal(dilated_seeds, 0)
     
     # Add another round
     basic_config['dilation']['rounds'] = 2
     
     dilated_seeds = abc_tracker.dilate(basic_config, seeds, im=image)
-    np.testing.assert_array_equal(dilated_seeds[28:33, 28:33], 1)
-    dilated_seeds[28:33, 28:33] = 0
+    np.testing.assert_array_equal(dilated_seeds[29:34, 29:34], 1)
+    dilated_seeds[29:34, 29:34] = 0
     np.testing.assert_array_equal(dilated_seeds, 0)
     
     # Pass that extra round explicitly
     basic_config['dilation']['rounds'] = 1
     
     dilated_seeds = abc_tracker.dilate(basic_config, seeds, im=image, n_rounds=2)
-    np.testing.assert_array_equal(dilated_seeds[28:33, 28:33], 1)
-    dilated_seeds[28:33, 28:33] = 0
+    np.testing.assert_array_equal(dilated_seeds[29:34, 29:34], 1)
+    dilated_seeds[29:34, 29:34] = 0
     np.testing.assert_array_equal(dilated_seeds, 0)
 
 

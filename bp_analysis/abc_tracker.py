@@ -22,25 +22,42 @@ from .status import Flag
 from .tracking_utils import gen_coord_map, gen_kernel, get_cfg
 
 
-def calc_laplacian(image, kernel=None):
+def calc_laplacian(image, config, kernel=None):
     if kernel is None:
-        kernel = np.array([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]])
+        width = get_cfg(config, 'seeds-laplacian', 'width', 3)
+        if width % 2 == 0:
+            raise ValueError(
+                "Laplacian kernel width must be an odd number of pixels")
+        kernel = np.full((width, width), -1)
+        kernel[width//2, width//2] = kernel.size - 1
     else:
         assert len(kernel.shape) == 2
     
     return scp.signal.convolve2d(image, kernel, mode='valid').astype(image.dtype)
 
 
-def find_seeds(image, config, **kwargs):
+def _pad_to_shape(shape, arr):
+    if arr.shape != shape:
+        pad = shape[0] - arr.shape[0]
+        return np.pad(arr, pad // 2)
+    return arr
+
+
+def find_seeds(src_image, config, **kwargs):
     n_sigma = get_cfg(config, 'seeds', 'n_sigma', 3)
     if get_cfg(config, 'seeds', 'use_laplacian', True):
-        image = calc_laplacian(image, **kwargs)
+        image = calc_laplacian(src_image, config, **kwargs)
         laplacian = image
     else:
+        image = src_image
         laplacian = None
     
     mean = np.mean(image)
     std = np.std(image)
+    
+    image = _pad_to_shape(src_image.shape, image)
+    if laplacian is not None:
+        laplacian = _pad_to_shape(src_image.shape, laplacian)
     
     seed_mode = get_cfg(config, 'seeds', 'mode', 'relative')
     if seed_mode == 'relative':
@@ -75,7 +92,8 @@ def dilate_laplacian(config, seeds, im=None, laplacian=None, mask=None,
         n_rounds=None):
     if mask is None:
         if laplacian is None and im is not None:
-            laplacian = calc_laplacian(im)
+            laplacian = calc_laplacian(im, config)
+            laplacian = _pad_to_shape(im.shape, laplacian)
         if laplacian is not None:
             mask = laplacian > 0
         else:
@@ -434,9 +452,6 @@ def id_image(im, config, tracked_image, mask=None):
     if get_cfg(config, 'main', 'subtract_data_min', True):
         im = im - im.min()
     seeds, laplacian = find_seeds(im, config=config)
-    if seeds.shape != im.shape:
-        seeds = np.pad(seeds, 1)
-        laplacian = np.pad(laplacian, 1)
     features = dilate(config, seeds, im=im, laplacian=laplacian)
     
     if mask is not None:
