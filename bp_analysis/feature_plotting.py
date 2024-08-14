@@ -23,7 +23,7 @@ SIMPLE_COLORS = {True: ((.1, 1, .1, .8), "OK", 'k'),
 class FeaturePlottingMixin:
     def plot_onto(self, ax, ids=False, legend=False, label_flag=False,
                   label_seq_flag=False, simple_colors=False,
-                  label_on_click=True, offset=(0, 0)):
+                  label_on_click=True, offset=(0, 0), plot_bounds=None):
         r, c = np.nonzero(self.cutout)
         r += self.cutout_corner[0]
         c += self.cutout_corner[1]
@@ -38,7 +38,7 @@ class FeaturePlottingMixin:
                 color, _, outline_color = COLORS[SequenceFlag.TOO_SHORT]
         
         line = outline_BP(r, c, scale=1, line_color=color, ax=ax,
-                          outline_color=outline_color)
+                          outline_color=outline_color, plot_bounds=plot_bounds)
         text_pieces = []
         if ids:
             text_pieces.append(str(self.id))
@@ -146,7 +146,7 @@ def _draw_color_legend(ax, simple_colors=False):
 
 def outline_BP(r, c, scale=16 / 1000, line_color=(1, 1, 1, .8),
                outline_color='k', outline_alpha=0.75, linewidth=1, ax=None,
-               offset=0, **kwargs):
+               offset=0, plot_bounds=None, **kwargs):
     """
     A very-modified stackoverflow routine to draw lines outlining coordinates
     """
@@ -155,10 +155,17 @@ def outline_BP(r, c, scale=16 / 1000, line_color=(1, 1, 1, .8),
     except TypeError:
         xoffset, yoffset = offset, offset
     
-    r = np.array(r)
-    c = np.array(c)
+    r = np.asarray(r)
+    c = np.asarray(c)
+    
     mapimg = np.zeros((np.max(c) - np.min(c) + 3, np.max(r) - np.min(r) + 3))
     mapimg[c - np.min(c) + 1, r - np.min(r) + 1] = 1
+    
+    if plot_bounds is not None:
+        plot_bounds = (
+            plot_bounds[0] - np.min(c) + 1,
+            plot_bounds[1] - np.min(r) + 1,
+        )
     
     # A horizontal line segment is needed, when the pixels next to each other
     # vertically belong to different groups (one is part of the mask, the
@@ -170,13 +177,37 @@ def outline_BP(r, c, scale=16 / 1000, line_color=(1, 1, 1, .8),
     ver_seg = np.where(mapimg.T[1:, :] != mapimg.T[:-1, :])
     ver_seg = ver_seg[1], ver_seg[0]
     
+    # If plot_bounds was provided, we removed any segments that are outside
+    # those bounds, replacing them with nan so the plotted line is
+    # discontinuous.
+    def map_vert_segment(segment):
+        if plot_bounds is None:
+            return segment
+        x, y = segment
+        if (plot_bounds[0][0] - 1 < x < plot_bounds[0][1] - .5
+                and plot_bounds[1][0] - 1 <= y < plot_bounds[1][1] - .5):
+            return segment
+        return (np.nan, np.nan)
+    
+    def map_horiz_segment(segment):
+        if plot_bounds is None:
+            return segment
+        x, y = segment
+        if (plot_bounds[0][0] - 1 <= x < plot_bounds[0][1] - .5
+                and plot_bounds[1][0] - 1 < y < plot_bounds[1][1] - .5):
+            return segment
+        return (np.nan, np.nan)
+    
+    hor_seg = map(map_horiz_segment, zip(*hor_seg))
+    ver_seg = map(map_vert_segment, zip(*ver_seg))
+    
     # If we have a horizontal segment at 7,2, it means that it must be drawn
     # between pixels (2,7) and (2,8), i.e. from (2,8) to (3,8).
     # Here we build up lists of line segments, and we make sure to connect them,
     # so that we get one, long (straight) line segment rather than a sequence
     # of one-pixel segments that together form one long segment.
     segments = []
-    for p in zip(*hor_seg):
+    for p in hor_seg:
         point1 = (p[1], p[0] + 1)
         point2 = (p[1] + 1, p[0] + 1)
         if len(segments) and segments[-1][1] == point1:
@@ -184,7 +215,7 @@ def outline_BP(r, c, scale=16 / 1000, line_color=(1, 1, 1, .8),
         else:
             segments.append([point1, point2])
     
-    for p in zip(*ver_seg):
+    for p in ver_seg:
         point1 = (p[1] + 1, p[0])
         point2 = (p[1] + 1, p[0] + 1)
         if len(segments) and segments[-1][1] == point1:

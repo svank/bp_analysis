@@ -143,8 +143,8 @@ def test_FeatureSequence_len(feature):
     assert len(sequence) == 2
 
 
-@pytest.mark.mpl_image_compare
-def test_TrackedImage_plot_features(feature):
+@pytest.fixture
+def various_features(feature):
     feature2 = copy.deepcopy(feature)
     feature2.cutout = feature2.cutout.T
     feature2.seed_cutout = feature2.seed_cutout.T
@@ -163,12 +163,24 @@ def test_TrackedImage_plot_features(feature):
     feature5.flag = Flag.EDGE
     feature5.cutout_corner = (41, 42)
 
-    tracked_image = TrackedImage("source_file", "time", config=None)
+    tracked_image = TrackedImage("source_file",(50, 50), "time", config=None)
     tracked_image.add_features(feature, feature2, feature3, feature4, feature5)
+    return tracked_image
 
+
+@pytest.mark.mpl_image_compare
+def test_TrackedImage_plot_features(various_features):
     fig, ax = plt.subplots(1, 1)
-    tracked_image.plot_features(ax=ax)
+    various_features.plot_features(ax=ax)
+    return fig
 
+
+@pytest.mark.mpl_image_compare
+def test_TrackedImage_sliced_plot_features(various_features):
+    fig, ax = plt.subplots(1, 1)
+    slice = np.s_[11:33, 8:18]
+    ax.imshow(various_features.feature_map()[slice], origin='lower')
+    various_features[slice].plot_features(ax=ax)
     return fig
 
 

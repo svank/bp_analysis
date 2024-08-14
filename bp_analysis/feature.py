@@ -1,3 +1,4 @@
+import copy
 from datetime import datetime
 import functools
 
@@ -61,7 +62,7 @@ class Feature(feature_plotting.FeaturePlottingMixin):
     def overlaps(self, other: "Feature"):
         if self.left > other.right or other.left > self.right:
             return False
-        if self.top > other.bottom or other.top > self.bottom:
+        if self.bottom > other.top or other.bottom > self.top:
             return False
         return not self.coord_set.isdisjoint(other.coord_set)
     
@@ -74,11 +75,11 @@ class Feature(feature_plotting.FeaturePlottingMixin):
         return self.cutout_corner[1] + self.cutout.shape[1]
     
     @property
-    def top(self):
+    def bottom(self):
         return self.cutout_corner[0]
     
     @property
-    def bottom(self):
+    def top(self):
         return self.cutout_corner[0] + self.cutout.shape[0]
     
     def __repr__(self):
@@ -139,6 +140,7 @@ class TrackedImage:
         self.source_shape = source_shape
         self.time = time
         self.config = config
+        self.plot_bounds = None
     
     def __repr__(self):
         return f"<TrackedImage, t={self.time}, {len(self.features)} features>"
@@ -179,7 +181,13 @@ class TrackedImage:
     
     def plot_features_onto(self, ax, legend=False, **kwargs):
         for feature in self.features:
-            feature.plot_onto(ax, **kwargs)
+            if self.plot_bounds is not None:
+                if (feature.left > self.plot_bounds[0][1]
+                        or feature.right < self.plot_bounds[0][0]
+                        or feature.bottom > self.plot_bounds[1][1]
+                        or feature.top < self.plot_bounds[1][0]):
+                    continue
+            feature.plot_onto(ax, **kwargs, plot_bounds=self.plot_bounds)
         if legend:
             simple_colors = kwargs.get('simple_colors', False)
             feature_plotting._draw_color_legend(ax, simple_colors=simple_colors)
@@ -196,7 +204,24 @@ class TrackedImage:
             map[feature.indices] = feature.id
         return map
     
-    def __getitem__(self, id) -> "Feature":
+    def __getitem__(self, id) -> "Feature | TrackedImage":
+        if isinstance(id, tuple):
+            if len(id) != 2:
+                raise ValueError("Slice must be two dimensional")
+            if any(not isinstance(s, slice) for s in id):
+                raise ValueError("Invalid slice types")
+            sliced = copy.deepcopy(self)
+            for feature in sliced.features:
+                corner = feature.cutout_corner
+                feature.cutout_corner = (
+                    corner[0] - id[0].start,
+                    corner[1] - id[1].start,
+                )
+            sliced.plot_bounds = (
+                (0, id[1].stop - id[1].start),
+                (0, id[0].stop - id[0].start),
+            )
+            return sliced
         for feature in self.features:
             if feature.id == id:
                 return feature
