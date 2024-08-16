@@ -3,6 +3,7 @@ import tomllib
 
 import numpy as np
 
+from .config_checker import verify_config
 from .feature import FeatureSequence, TrackedImage
 from .status import Event, SequenceFlag
 from .tracking_utils import get_cfg
@@ -15,6 +16,8 @@ def link_features(tracked_images: list[TrackedImage],
             config = tomllib.load(f)
     else:
         config = config_file
+    verify_config(config)
+    
     max_size_change_pct = get_cfg(
         config, 'size-change-filter', 'max_size_change_pct', 50)
     max_size_change_px = get_cfg(

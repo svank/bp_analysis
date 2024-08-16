@@ -10,6 +10,9 @@ use_laplacian = true
 mode = 'relative'
 threshold = 1000
 
+[seeds-laplacian]
+width = 3
+
 [dilation]
 rounds = 3
 method = 'contour'
@@ -28,12 +31,12 @@ threshold = 0.2
 
 [proximity-filter]
 threshold = 4
+ignore_below_size_ratio = 0
 
 [size-filter]
 min_size = 4
 max_size = 110
 max_diagonal = 20
-ignore_below_size_ratio = .1
 
 [size-change-filter]
 max_size_change_pct = 50
