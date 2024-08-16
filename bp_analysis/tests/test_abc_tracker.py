@@ -356,6 +356,55 @@ def test_filter_close_neighbors(basic_config):
         assert feat.flag == Flag.CLOSE_NEIGHBOR
 
 
+def test_filter_close_neighbors_min_size_ratio(basic_config):
+    labeled_feats = np.zeros((20, 20), dtype=int)
+    labeled_feats[5:7, 5:7] = 1
+    labeled_feats[8, 5] = 2
+    tracked_image = feature.TrackedImage()
+    tracked_image.add_features_from_map(
+        labeled_feats, labeled_feats, labeled_feats)
+    
+    basic_config['proximity-filter']['threshold'] = 3
+    basic_config['proximity-filter']['ignore_below_size_ratio'] = .24
+    
+    abc_tracker.filter_close_neighbors(
+        labeled_feats, basic_config, tracked_image)
+    for feat in tracked_image.features:
+        assert feat.flag == Flag.CLOSE_NEIGHBOR
+
+    basic_config['proximity-filter']['ignore_below_size_ratio'] = .26
+    tracked_image = feature.TrackedImage()
+    tracked_image.add_features_from_map(
+        labeled_feats, labeled_feats, labeled_feats)
+    
+    abc_tracker.filter_close_neighbors(
+        labeled_feats, basic_config, tracked_image)
+    assert tracked_image[1].flag == Flag.GOOD
+    assert tracked_image[2].flag == Flag.CLOSE_NEIGHBOR
+    
+    # Have the features be encountered in a different order
+    tracked_image = feature.TrackedImage()
+    tracked_image.add_features_from_map(
+        labeled_feats, labeled_feats, labeled_feats)
+    tracked_image.features = tracked_image.features[::-1]
+    
+    abc_tracker.filter_close_neighbors(
+        labeled_feats, basic_config, tracked_image)
+    assert tracked_image[1].flag == Flag.GOOD
+    assert tracked_image[2].flag == Flag.CLOSE_NEIGHBOR
+
+    basic_config['proximity-filter']['ignore_below_size_ratio'] = .24
+    tracked_image = feature.TrackedImage()
+    tracked_image.add_features_from_map(
+        labeled_feats, labeled_feats, labeled_feats)
+    tracked_image.features = tracked_image.features[::-1]
+    
+    abc_tracker.filter_close_neighbors(
+        labeled_feats, basic_config, tracked_image)
+    for feat in tracked_image.features:
+        assert feat.flag == Flag.CLOSE_NEIGHBOR
+
+
 def test_remove_false_positives(basic_config):
     labeled_feats = np.zeros((20, 20), dtype=int)
     labeled_feats[5:10, 5:10] = 1

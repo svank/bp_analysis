@@ -304,6 +304,8 @@ def filter_close_neighbors(labeled_feats, config, tracked_image):
     there may be room for confusion.
     """
     closeness = get_cfg(config, 'proximity-filter', 'threshold', 4)
+    size_ratio_thresh = get_cfg(
+        config, 'proximity-filter', 'ignore_below_size_ratio', 0)
     # Iterate over all features in image
     for feature in tracked_image.features:
         if feature.flag == Flag.CLOSE_NEIGHBOR:
@@ -336,12 +338,15 @@ def filter_close_neighbors(labeled_feats, config, tracked_image):
         # other features
         neighbors = labeled_feats[(rvicinity, cvicinity)]
         neighbors = np.unique(neighbors[neighbors != 0])
+        neighbors = [tracked_image[id] for id in neighbors]
         for neighbor in neighbors:
             # This feature is too close to another feature,
             # so we flag it
-            tracked_image[neighbor].flag = Flag.CLOSE_NEIGHBOR
-        if len(neighbors):
-            tracked_image[feature.id].flag = Flag.CLOSE_NEIGHBOR
+            if feature.size / neighbor.size >= size_ratio_thresh:
+                neighbor.flag = Flag.CLOSE_NEIGHBOR
+        if len(neighbors) and any(n.size / feature.size >= size_ratio_thresh
+                                  for n in neighbors):
+            feature.flag = Flag.CLOSE_NEIGHBOR
 
 
 def filter_size(tracked_image: TrackedImage, config):
