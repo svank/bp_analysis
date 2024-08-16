@@ -23,7 +23,8 @@ SIMPLE_COLORS = {True: ((.1, 1, .1, .8), "OK", 'k'),
 class FeaturePlottingMixin:
     def plot_onto(self, ax, ids=False, legend=False, label_flag=False,
                   label_seq_flag=False, simple_colors=False,
-                  label_on_click=True, offset=(0, 0), plot_bounds=None):
+                  label_on_click=True, offset=(0, 0), plot_bounds=None,
+                  line_thickness=1):
         r, c = np.nonzero(self.cutout)
         r += self.cutout_corner[0]
         c += self.cutout_corner[1]
@@ -38,7 +39,8 @@ class FeaturePlottingMixin:
                 color, _, outline_color = COLORS[SequenceFlag.TOO_SHORT]
         
         line = outline_BP(r, c, scale=1, line_color=color, ax=ax,
-                          outline_color=outline_color, plot_bounds=plot_bounds)
+                          outline_color=outline_color, plot_bounds=plot_bounds,
+                          linewidth=line_thickness)
         text_pieces = []
         if ids:
             text_pieces.append(str(self.id))
@@ -270,6 +272,6 @@ def outline_BP(r, c, scale=16 / 1000, line_color=(1, 1, 1, .8),
         linewidth=1.6 * linewidth,
         path_effects=[
             pe.withStroke(linewidth=2.6 * linewidth, foreground=outline_color,
-                      alpha=outline_alpha)],
+                          alpha=outline_alpha)],
         **kwargs)
     return line
