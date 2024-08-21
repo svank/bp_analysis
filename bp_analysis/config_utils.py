@@ -12,21 +12,15 @@ def get_cfg(config, section, key, default):
     return config.get(section, {}).get(key, default)
 
 
-_verified_configs = []
-
-
 def verify_config(config):
-    if id(config) in _verified_configs:
-        return
     for key in config:
         if key not in reference_config:
-            raise RuntimeError(f"Unexpected section '{key}' in config")
+            raise ValueError(f"Unexpected section '{key}' in config")
     for section in config:
         for key in config[section]:
             if key not in reference_config[section]:
-                raise RuntimeError(
+                raise ValueError(
                     f"Unexpected value '{key}' in config section '{section}'")
-    _verified_configs.append(id(config))
 
 
 def _flatten_config(config):
