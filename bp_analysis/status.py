@@ -1,14 +1,14 @@
-from enum import Enum, auto
+from enum import IntEnum, auto
 
 
-class Flag(Enum):
-    GOOD = auto()
-    FALSE_POS = auto()
-    CLOSE_NEIGHBOR = auto()
-    EDGE = auto()
-    TOO_SMALL = auto()
-    TOO_BIG = auto()
-    TOO_LONG = auto()
+class Flag(IntEnum):
+    GOOD = 1
+    FALSE_POS = 2
+    CLOSE_NEIGHBOR = 3
+    EDGE = 4
+    TOO_SMALL = 5
+    TOO_BIG = 6
+    TOO_LONG = 7
     
     def __repr__(self):
         return self.name
@@ -20,9 +20,9 @@ class Flag(Enum):
         return str
 
 
-class SequenceFlag(Enum):
-    GOOD = auto()
-    TOO_SHORT = auto()
+class SequenceFlag(IntEnum):
+    GOOD = 100
+    TOO_SHORT = 101
     
     def __repr__(self):
         return self.name
@@ -34,15 +34,15 @@ class SequenceFlag(Enum):
         return str
 
 
-class Event(Enum):
-    NORMAL = auto()
-    MERGE = auto()
-    SPLIT = auto()
-    FIRST_IMAGE = auto()
-    LAST_IMAGE = auto()
-    COMPLEX = auto()
-    SIZE_CHANGE_PX = auto()
-    SIZE_CHANGE_PCT = auto()
+class Event(IntEnum):
+    NORMAL = 200
+    MERGE = 201
+    SPLIT = 202
+    FIRST_IMAGE = 203
+    LAST_IMAGE = 204
+    COMPLEX = 205
+    SIZE_CHANGE_PX = 206
+    SIZE_CHANGE_PCT = 207
     
     def __repr__(self):
         return self.name
