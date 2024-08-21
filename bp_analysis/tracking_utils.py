@@ -11,7 +11,3 @@ def gen_coord_map(labeled_feats):
 def gen_kernel(connect_diagonal=True):
     return scipy.ndimage.generate_binary_structure(
             2, 2 if connect_diagonal else 1)
-
-
-def get_cfg(config, section, key, default):
-    return config.get(section, {}).get(key, default)

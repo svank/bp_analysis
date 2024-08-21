@@ -17,10 +17,10 @@ import scipy.ndimage
 import scipy.signal
 from tqdm.contrib.concurrent import process_map
 
-from .config_utils import verify_config
+from .config_utils import get_cfg
 from .feature import TrackedImage
 from .status import Flag
-from .tracking_utils import gen_coord_map, gen_kernel, get_cfg
+from .tracking_utils import gen_coord_map, gen_kernel
 
 
 def calc_laplacian(image, config, kernel=None):
@@ -424,7 +424,6 @@ def fully_process_one_image(file, config) -> TrackedImage:
     if isinstance(config, str):
         with open(config, 'rb') as f:
             config = tomllib.load(f)
-    verify_config(config)
     
     time, data = load_data(file, config)
     tracked_image = TrackedImage(config=config, time=time, source_file=file,
