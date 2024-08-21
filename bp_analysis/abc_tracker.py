@@ -17,7 +17,7 @@ import scipy.ndimage
 import scipy.signal
 from tqdm.contrib.concurrent import process_map
 
-from .config_checker import verify_config
+from .config_utils import verify_config
 from .feature import TrackedImage
 from .status import Flag
 from .tracking_utils import gen_coord_map, gen_kernel, get_cfg

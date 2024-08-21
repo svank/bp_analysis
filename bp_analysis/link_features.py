@@ -3,7 +3,7 @@ import tomllib
 
 import numpy as np
 
-from .config_checker import verify_config
+from .config_utils import verify_config
 from .feature import FeatureSequence, TrackedImage
 from .status import Event, SequenceFlag
 from .tracking_utils import get_cfg
