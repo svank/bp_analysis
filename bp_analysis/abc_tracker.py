@@ -126,6 +126,10 @@ def dilate_contour(config, seeds, im, n_rounds=None, _region_rounds_override=0):
         config, 'dilation-contour', 'max_intensity_range', 9999)
     contour_lower_thresh = get_cfg(
         config, 'dilation-contour', 'lower_thresh', np.nan)
+    low_percentile = get_cfg(
+        config, 'dilation-contour', 'region_low_percentile', 0)
+    high_percentile = get_cfg(
+        config, 'dilation-contour', 'region_high_percentile', 100)
     struc = gen_kernel(get_cfg(config, 'main', 'connect_diagonal', True))
     labeled_feats_original, n_feats = scipy.ndimage.label(
             seeds != 0, struc)
@@ -164,8 +168,8 @@ def dilate_contour(config, seeds, im, n_rounds=None, _region_rounds_override=0):
         region = im[rmin:rmax, cmin:cmax]
         if not np.isnan(contour_lower_thresh):
             region = region[region > contour_lower_thresh]
-        feat_min = np.min(region)
-        feat_max = np.max(region)
+        feat_min, feat_max = np.percentile(
+            region, [low_percentile, high_percentile])
         if feat_max - feat_min > max_intensity_range:
             feat_max = feat_min + max_intensity_range
         # All the type-casting here is to satisfy numba

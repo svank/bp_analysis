@@ -25,6 +25,8 @@ region_scale = 3
 max_intensity_mode = 'relative'
 max_intensity_range = 9999
 lower_thresh = nan
+region_low_percentile = 0
+region_high_percentile = 100
 
 [false-pos-filter]
 threshold = 0.2

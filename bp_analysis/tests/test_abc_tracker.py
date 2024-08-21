@@ -228,6 +228,21 @@ def test_dilate_contour(basic_contour_config, contour_image):
     np.testing.assert_array_equal(dilated_seeds, contour_image >= .9)
 
 
+def test_dilate_contour_percentiles(basic_contour_config, contour_image):
+    contour_image[3, 3] = 999999
+    contour_image[4, 3] = 3
+    contour_image[3, 1] = -999999
+    
+    basic_contour_config['dilation-contour']['region_low_percentile'] = 5
+    basic_contour_config['dilation-contour']['region_high_percentile'] = 92
+    
+    seeds = contour_image > 1
+    
+    dilated_seeds = abc_tracker.dilate(
+        basic_contour_config, seeds, im=contour_image)
+    np.testing.assert_array_equal(dilated_seeds, contour_image >= 1)
+
+
 def test_dilate_contour_threshold(basic_contour_config, contour_image):
     basic_contour_config['dilation']['rounds'] = 2
     basic_contour_config['dilation-contour']['threshold'] = .33
