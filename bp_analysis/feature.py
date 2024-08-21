@@ -205,21 +205,39 @@ class TrackedImage:
         return map
     
     def __getitem__(self, id) -> "Feature | TrackedImage":
+        if isinstance(id, slice):
+            id = (id, slice(0, -1, 1))
         if isinstance(id, tuple):
             if len(id) != 2:
                 raise ValueError("Slice must be two dimensional")
             if any(not isinstance(s, slice) for s in id):
                 raise ValueError("Invalid slice types")
+            slices = []
+            for s, size in zip(id, self.source_shape):
+                if s.stop is None:
+                    stop = size
+                elif s.stop < 0:
+                    stop = s.stop + size + 1
+                else:
+                    stop = s.stop
+                if s.start is None:
+                    start = 0
+                else:
+                    start = s.start
+                if s.step is not None and s.step != 1:
+                    raise ValueError("Stride != 1 not supported")
+                slices.append(slice(start, stop, 1))
+                
             sliced = copy.deepcopy(self)
             for feature in sliced.features:
                 corner = feature.cutout_corner
                 feature.cutout_corner = (
-                    corner[0] - id[0].start,
-                    corner[1] - id[1].start,
+                    corner[0] - slices[0].start,
+                    corner[1] - slices[1].start,
                 )
             sliced.plot_bounds = (
-                (0, id[1].stop - id[1].start),
-                (0, id[0].stop - id[0].start),
+                (0, slices[1].stop - slices[1].start),
+                (0, slices[0].stop - slices[0].start),
             )
             return sliced
         for feature in self.features:
