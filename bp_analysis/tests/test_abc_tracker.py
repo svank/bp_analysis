@@ -187,7 +187,7 @@ def basic_contour_config(basic_config):
     basic_config['main']['connect_diagonal'] = True
     basic_config['dilation-contour']['require_downhill'] = True
     basic_config['dilation-contour']['threshold'] = 0.2
-    basic_config['dilation-contour']['min_finding_scale'] = 1
+    basic_config['dilation-contour']['region_scale'] = 1
     basic_config['dilation-contour']['max_intensity_range'] = 999
     return basic_config
 
@@ -256,8 +256,8 @@ def test_dilate_contour_require_downhill(
     np.testing.assert_array_equal(dilated_seeds, contour_image >= 1)
 
 
-def test_dilate_contour_min_finding_scale(basic_contour_config, contour_image):
-    basic_contour_config['dilation-contour']['min_finding_scale'] = 2
+def test_dilate_contour_region_scale(basic_contour_config, contour_image):
+    basic_contour_config['dilation-contour']['region_scale'] = 2
     
     contour_image[3, 1] = -1
     contour_image[3, 0] = -2
@@ -271,7 +271,7 @@ def test_dilate_contour_min_finding_scale(basic_contour_config, contour_image):
     np.testing.assert_array_equal(dilated_seeds, expected)
     
     basic_contour_config['dilation']['rounds'] = 2
-    basic_contour_config['dilation-contour']['min_finding_scale'] = 1
+    basic_contour_config['dilation-contour']['region_scale'] = 1
     dilated_seeds = abc_tracker.dilate(
         basic_contour_config, seeds, im=contour_image)
     expected = np.zeros_like(contour_image, dtype=bool)
@@ -279,9 +279,9 @@ def test_dilate_contour_min_finding_scale(basic_contour_config, contour_image):
     np.testing.assert_array_equal(dilated_seeds, expected)
 
 
-def test_dilate_contour_min_finding_size(basic_contour_config, contour_image):
-    basic_contour_config['dilation-contour']['min_finding_scale'] = 99999
-    basic_contour_config['dilation-contour']['min_finding_size'] = 2
+def test_dilate_contour_region_size(basic_contour_config, contour_image):
+    basic_contour_config['dilation-contour']['region_scale'] = 99999
+    basic_contour_config['dilation-contour']['region_size'] = 2
     
     contour_image[3, 0] = -.5
     contour_image[4, 6] = .59
@@ -294,7 +294,7 @@ def test_dilate_contour_min_finding_size(basic_contour_config, contour_image):
     expected = contour_image > .6
     np.testing.assert_array_equal(dilated_seeds, expected)
     
-    basic_contour_config['dilation-contour']['min_finding_size'] = 3
+    basic_contour_config['dilation-contour']['region_size'] = 3
     dilated_seeds = abc_tracker.dilate(
         basic_contour_config, seeds, im=contour_image)
     expected = contour_image > 0

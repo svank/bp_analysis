@@ -118,9 +118,9 @@ def dilate_contour(config, seeds, im, n_rounds=None, _region_rounds_override=0):
     req_downhill = get_cfg(config, 'dilation-contour', 'require_downhill', True)
     thresh = get_cfg(config, 'dilation-contour', 'threshold', 0.5)
     if not (min_region_size := get_cfg(
-            config, 'dilation-contour', 'min_finding_size', 0)):
+            config, 'dilation-contour', 'region_size', 0)):
         min_region_size = get_cfg(
-            config, 'dilation-contour', 'min_finding_scale', 3)
+            config, 'dilation-contour', 'region_scale', 3)
         min_region_size *= (n_rounds + _region_rounds_override)
     max_intensity_range = get_cfg(
         config, 'dilation-contour', 'max_intensity_range', 9999)

@@ -64,7 +64,7 @@ def basic_config():
         [dilation-contour]
         require_downhill = false
         threshold = 0.65
-        min_finding_scale = 1
+        region_scale = 1
         max_intensity_range = 1.2
         
         [false-pos-filter]

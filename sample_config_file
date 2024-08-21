@@ -20,8 +20,8 @@ method = 'contour'
 [dilation-contour]
 require_downhill = true
 threshold = 0.5
-min_finding_size = 0
-min_finding_scale = 3
+region_size = 0
+region_scale = 3
 max_intensity_mode = 'relative'
 max_intensity_range = 9999
 lower_thresh = nan
