@@ -25,7 +25,7 @@ from .tracking_utils import gen_coord_map, gen_kernel
 
 def calc_laplacian(image, config, kernel=None):
     if kernel is None:
-        width = get_cfg(config, 'seeds-laplacian', 'width', 3)
+        width = get_cfg(config, 'seeds-laplacian', 'width')
         if width % 2 == 0:
             raise ValueError(
                 "Laplacian kernel width must be an odd number of pixels")
@@ -45,8 +45,8 @@ def _pad_to_shape(shape, arr):
 
 
 def find_seeds(src_image, config, **kwargs):
-    n_sigma = get_cfg(config, 'seeds', 'n_sigma', 3)
-    if get_cfg(config, 'seeds', 'use_laplacian', True):
+    n_sigma = get_cfg(config, 'seeds', 'n_sigma')
+    if get_cfg(config, 'seeds', 'use_laplacian'):
         image = calc_laplacian(src_image, config, **kwargs)
         laplacian = image
     else:
@@ -60,11 +60,11 @@ def find_seeds(src_image, config, **kwargs):
     if laplacian is not None:
         laplacian = _pad_to_shape(src_image.shape, laplacian)
     
-    seed_mode = get_cfg(config, 'seeds', 'mode', 'relative')
+    seed_mode = get_cfg(config, 'seeds', 'mode')
     if seed_mode == 'relative':
         seeds = image > (mean + n_sigma * std)
     elif seed_mode == 'absolute':
-        seeds = image > get_cfg(config, 'seeds', 'threshold', 1000)
+        seeds = image > get_cfg(config, 'seeds', 'threshold')
     else:
         raise RuntimeError("'seed_mode' must be one of 'relative', 'absolute'")
     
@@ -72,11 +72,11 @@ def find_seeds(src_image, config, **kwargs):
 
 
 def get_n_rounds_dilation(config):
-    return get_cfg(config, 'dilation', 'rounds', 3)
+    return get_cfg(config, 'dilation', 'rounds')
 
 
 def dilate(config, *args, **kwargs):
-    method = get_cfg(config, 'dilation', 'method', 'laplacian')
+    method = get_cfg(config, 'dilation', 'method')
     if method == "laplacian":
         if '_region_rounds_override' in kwargs:
             del kwargs['_region_rounds_override']
@@ -103,7 +103,7 @@ def dilate_laplacian(config, seeds, im=None, laplacian=None, mask=None,
     if n_rounds is None:
         n_rounds = get_n_rounds_dilation(config)
     
-    struc = gen_kernel(get_cfg(config, 'main', 'connect_diagonal', True))
+    struc = gen_kernel(get_cfg(config, 'main', 'connect_diagonal'))
     seeds = scp.ndimage.binary_dilation(
             seeds,
             structure=struc,
@@ -115,22 +115,20 @@ def dilate_laplacian(config, seeds, im=None, laplacian=None, mask=None,
 def dilate_contour(config, seeds, im, n_rounds=None, _region_rounds_override=0):
     if n_rounds is None:
         n_rounds = get_n_rounds_dilation(config)
-    req_downhill = get_cfg(config, 'dilation-contour', 'require_downhill', True)
-    thresh = get_cfg(config, 'dilation-contour', 'threshold', 0.5)
+    req_downhill = get_cfg(config, 'dilation-contour', 'require_downhill')
+    thresh = get_cfg(config, 'dilation-contour', 'threshold')
     if not (min_region_size := get_cfg(
-            config, 'dilation-contour', 'region_size', 0)):
-        min_region_size = get_cfg(
-            config, 'dilation-contour', 'region_scale', 3)
+            config, 'dilation-contour', 'region_size')):
+        min_region_size = get_cfg(config, 'dilation-contour', 'region_scale')
         min_region_size *= (n_rounds + _region_rounds_override)
     max_intensity_range = get_cfg(
-        config, 'dilation-contour', 'max_intensity_range', 9999)
-    contour_lower_thresh = get_cfg(
-        config, 'dilation-contour', 'lower_thresh', np.nan)
+        config, 'dilation-contour', 'max_intensity_range')
+    contour_lower_thresh = get_cfg(config, 'dilation-contour', 'lower_thresh')
     low_percentile = get_cfg(
-        config, 'dilation-contour', 'region_low_percentile', 0)
+        config, 'dilation-contour', 'region_low_percentile')
     high_percentile = get_cfg(
-        config, 'dilation-contour', 'region_high_percentile', 100)
-    struc = gen_kernel(get_cfg(config, 'main', 'connect_diagonal', True))
+        config, 'dilation-contour', 'region_high_percentile')
+    struc = gen_kernel(get_cfg(config, 'main', 'connect_diagonal'))
     labeled_feats_original, n_feats = scipy.ndimage.label(
             seeds != 0, struc)
     if n_feats == 0:
@@ -142,7 +140,7 @@ def dilate_contour(config, seeds, im, n_rounds=None, _region_rounds_override=0):
     ids_to_expand = list(coord_map.keys())
     
     max_intensity_mode = get_cfg(
-        config, 'dilation-contour', 'max_intensity_mode', 'relative')
+        config, 'dilation-contour', 'max_intensity_mode')
     if max_intensity_mode == 'relative':
         max_intensity_range *= im.mean()
     elif max_intensity_mode == 'absolute':
@@ -265,7 +263,7 @@ def remove_false_positives(labeled_feats, laplacian, config, im, seeds,
             config, labeled_feats > 0, mask=np.ones_like(im), n_rounds=1)
     
     # Uniquely label contiguous regions
-    struc = gen_kernel(get_cfg(config, 'main', 'connect_diagonal', True))
+    struc = gen_kernel(get_cfg(config, 'main', 'connect_diagonal'))
     labeled_feats_dilated, _ = scipy.ndimage.label(
             masked_dilation > 0, struc)
     labeled_feats_full_dilated, _ = scipy.ndimage.label(
@@ -299,7 +297,7 @@ def remove_false_positives(labeled_feats, laplacian, config, im, seeds,
         
         # Mark features that don't meet the threshold
         if (gained_pix / possible_pix
-                > get_cfg(config, 'false-pos-filter', 'threshold', 0.2)):
+                > get_cfg(config, 'false-pos-filter', 'threshold')):
             feature.flag = Flag.FALSE_POS
 
 
@@ -308,9 +306,9 @@ def filter_close_neighbors(labeled_feats, config, tracked_image):
     Remove features that are too close to another feature, on the grounds that
     there may be room for confusion.
     """
-    closeness = get_cfg(config, 'proximity-filter', 'threshold', 4)
+    closeness = get_cfg(config, 'proximity-filter', 'threshold')
     size_ratio_thresh = get_cfg(
-        config, 'proximity-filter', 'ignore_below_size_ratio', 0)
+        config, 'proximity-filter', 'ignore_below_size_ratio')
     # Iterate over all features in image
     for feature in tracked_image.features:
         if feature.flag == Flag.CLOSE_NEIGHBOR:
@@ -355,9 +353,9 @@ def filter_close_neighbors(labeled_feats, config, tracked_image):
 
 
 def filter_size(tracked_image: TrackedImage, config):
-    min_size = get_cfg(config, 'size-filter', 'min_size', 4)
-    max_size = get_cfg(config, 'size-filter', 'max_size', 110)
-    max_diagonal = get_cfg(config, 'size-filter', 'max_diagonal', 20)
+    min_size = get_cfg(config, 'size-filter', 'min_size')
+    max_size = get_cfg(config, 'size-filter', 'max_size')
+    max_diagonal = get_cfg(config, 'size-filter', 'max_diagonal')
     
     for feature in tracked_image.features:
         if not feature.is_good:
@@ -418,7 +416,7 @@ def load_data(file, config):
     data, hdr = fits.getdata(file, header=True)
     time = datetime.strptime(hdr['date-avg'], "%Y-%m-%dT%H:%M:%S.%f")
     
-    trim = get_cfg(config, 'main', 'trim_image', 0)
+    trim = get_cfg(config, 'main', 'trim_image')
     if trim:
         data = data[trim:-trim, trim:-trim]
     return time, data
@@ -433,7 +431,7 @@ def fully_process_one_image(file, config) -> TrackedImage:
     tracked_image = TrackedImage(config=config, time=time, source_file=file,
                                  source_shape=data.shape)
     
-    if get_cfg(config, 'main', 'also_id_negative', False):
+    if get_cfg(config, 'main', 'also_id_negative'):
         negative_tracked_image = copy.deepcopy(tracked_image)
         neg_data = -data
         mask = neg_data > 0
@@ -446,12 +444,12 @@ def fully_process_one_image(file, config) -> TrackedImage:
     
     id_image(data, config, tracked_image, mask)
     
-    if get_cfg(config, 'main', 'also_id_negative', False):
+    if get_cfg(config, 'main', 'also_id_negative'):
         for feature in tracked_image.features:
             feature.feature_class = 'positive'
         tracked_image.merge_features(negative_tracked_image)
     
-    trim = get_cfg(config, 'main', 'trim_image', 0)
+    trim = get_cfg(config, 'main', 'trim_image')
     if trim:
         for feature in tracked_image.features:
             feature.cutout_corner = (feature.cutout_corner[0] + trim,
@@ -460,7 +458,7 @@ def fully_process_one_image(file, config) -> TrackedImage:
 
 
 def id_image(im, config, tracked_image, mask=None):
-    if get_cfg(config, 'main', 'subtract_data_min', True):
+    if get_cfg(config, 'main', 'subtract_data_min'):
         im = im - im.min()
     seeds, laplacian = find_seeds(im, config=config)
     features = dilate(config, seeds, im=im, laplacian=laplacian)
@@ -468,7 +466,7 @@ def id_image(im, config, tracked_image, mask=None):
     if mask is not None:
         features *= mask
     
-    struc = gen_kernel(get_cfg(config, 'main', 'connect_diagonal', True))
+    struc = gen_kernel(get_cfg(config, 'main', 'connect_diagonal'))
     labeled_feats, n_feat = scipy.ndimage.label(features, struc)
     tracked_image.add_features_from_map(labeled_feats, im, seeds)
     

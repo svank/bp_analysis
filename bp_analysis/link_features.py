@@ -17,9 +17,9 @@ def link_features(tracked_images: list[TrackedImage],
         config = config_file
     
     max_size_change_pct = get_cfg(
-        config, 'size-change-filter', 'max_size_change_pct', 50)
+        config, 'size-change-filter', 'max_size_change_pct')
     max_size_change_px = get_cfg(
-        config, 'size-change-filter', 'max_size_change_px', 10)
+        config, 'size-change-filter', 'max_size_change_px')
     
     #
     ## Stage 1: Linking features together
@@ -185,7 +185,7 @@ def link_features(tracked_images: list[TrackedImage],
     ## Stage 3: Filtering the sequences
     #
     
-    min_lifetime = get_cfg(config, 'lifetime-filter', 'min_lifetime', 5)
+    min_lifetime = get_cfg(config, 'lifetime-filter', 'min_lifetime')
     for sequence in feature_sequences:
         if len(sequence.features) < min_lifetime:
             sequence.flag = SequenceFlag.TOO_SHORT

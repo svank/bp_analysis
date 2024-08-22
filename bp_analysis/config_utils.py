@@ -1,5 +1,8 @@
+import copy
 import pathlib
 import tomllib
+
+import numpy as np
 
 
 reference_file = pathlib.Path(__file__).parent.parent / 'sample_config_file'
@@ -7,9 +10,12 @@ with open(reference_file, 'rb') as file:
     reference_config = tomllib.load(file)
 
 
-def get_cfg(config, section, key, default):
+def get_cfg(config, section, key):
     verify_config(config)
-    return config.get(section, {}).get(key, default)
+    try:
+        return config[section][key]
+    except KeyError:
+        return reference_config[section][key]
 
 
 def verify_config(config):
@@ -21,6 +27,13 @@ def verify_config(config):
             if key not in reference_config[section]:
                 raise ValueError(
                     f"Unexpected value '{key}' in config section '{section}'")
+
+
+def fill_with_defaults(config):
+    merged_config = copy.deepcopy(reference_config)
+    for section in config:
+        merged_config[section] |= config[section]
+    return merged_config
 
 
 def _flatten_config(config):
@@ -43,6 +56,7 @@ def diff_configs(conf1, conf2):
         diff.append(f"{key}: {conf2[key]}")
     keys_in_both = conf1.keys() & conf2.keys()
     for key in keys_in_both:
-        if conf2[key] != conf1[key]:
+        if (conf2[key] != conf1[key]
+                and not (np.isnan(conf2[key]) and np.isnan(conf1[key]))):
             diff.append(f"{key}: {conf2[key]}")
     return diff

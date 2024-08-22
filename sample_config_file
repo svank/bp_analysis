@@ -1,6 +1,9 @@
+# This serves as the authoritative list of valid configuration options, and
+# also sets the default values for each
+
 [main]
 also_id_negative = false
-subtract_data_min = true
+subtract_data_min = false
 connect_diagonal = true
 trim_image = 0
 
@@ -45,4 +48,4 @@ max_size_change_pct = 50
 max_size_change_px = 10
 
 [lifetime-filter]
-min_lifetime = 1
+min_lifetime = 5
