@@ -225,7 +225,7 @@ def _walk_and_mark_as_complex(new_sequence):
 
 class TrackedImageSet:
     def __init__(self, source_images):
-        self.sequences: list[FeatureSequence] = []
+        self.sequences: SequenceList[FeatureSequence] = SequenceList()
         self.tracked_images = source_images
     
     def add_sequences(self, *sequences):
@@ -243,3 +243,25 @@ class TrackedImageSet:
     
     def __repr__(self):
         return f"<TrackedImageSet with {len(self.sequences)} sequences>"
+
+
+class SequenceList(list):
+    def filtered(self, origin=None, fate=None, feature_flag=None, flag=None,
+               min_length=None, max_length=None):
+        sequences = self
+        if origin is not None:
+            sequences = [s for s in sequences if s.origin == origin]
+        if fate is not None:
+            sequences = [s for s in sequences if s.fate == fate]
+        if feature_flag is not None:
+            sequences = [s for s in sequences if s.feature_flag == feature_flag]
+        if flag is not None:
+            sequences = [s for s in sequences if s.flag == flag]
+        if min_length is not None:
+            sequences = [s for s in sequences if len(s) >= min_length]
+        if max_length is not None:
+            sequences = [s for s in sequences if len(s) <= max_length]
+        return SequenceList(sequences)
+    
+    def sorted_by_length(self):
+        return SequenceList(sorted(self, key=lambda s: len(s), reverse=True))
