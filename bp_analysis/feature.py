@@ -228,7 +228,8 @@ class TrackedImage:
                     raise ValueError("Stride != 1 not supported")
                 slices.append(slice(start, stop, 1))
                 
-            sliced = copy.deepcopy(self)
+            sliced = copy.copy(self)
+            sliced.features = [copy.copy(f) for f in sliced.features]
             for feature in sliced.features:
                 corner = feature.cutout_corner
                 feature.cutout_corner = (
