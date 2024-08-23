@@ -21,10 +21,14 @@ SIMPLE_COLORS = {True: ((.1, 1, .1, .8), "OK", 'k'),
 
 
 class FeaturePlottingMixin:
-    def plot_onto(self, ax, ids=False, legend=False, label_flag=False,
-                  label_seq_flag=False, simple_colors=False,
+    def plot_onto(self, ax, ids=False, sequence_ids=False, legend=False,
+                  label_flag=False, label_seq_flag=False, simple_colors=False,
                   label_on_click=True, offset=(0, 0), plot_bounds=None,
-                  line_thickness=1):
+                  line_thickness=1, emphasize_id=None, emphasize_seq_id=None):
+        if (emphasize_id == self.id
+                or (self.sequence is not None
+                    and self.sequence.id == emphasize_seq_id)):
+            line_thickness *= 2
         r, c = np.nonzero(self.cutout)
         r += self.cutout_corner[0]
         c += self.cutout_corner[1]
@@ -44,6 +48,8 @@ class FeaturePlottingMixin:
         text_pieces = []
         if ids:
             text_pieces.append(str(self.id))
+        if sequence_ids and self.sequence is not None:
+            text_pieces.append(str(self.sequence.id))
         if label_flag and self.flag != Flag.GOOD:
             text_pieces.append(str(self.flag))
         if (label_seq_flag and self.sequence is not None
