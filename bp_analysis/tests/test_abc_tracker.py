@@ -547,17 +547,20 @@ def test_fully_process_one_image(
         assert found_feature.is_good == (real_feature[3] == Flag.GOOD)
 
 
-def test_load_data_trim(basic_config, mocker):
-    basic_config['main']['trim_image'] = 2
-    image = np.zeros((10, 10))
-    image[:2] = 1
-    image[-2:] = 1
-    image[:, :2] = 1
-    image[:, -2:] = 1
+def test_trimmed_image(basic_contour_config, contour_image, mocker):
+    contour_image[3, 0] = 999
+    contour_image[3, -1] = 999
+    contour_image[0, 3] = 999
+    contour_image[-1, 3] = 999
     fake_hdr = {"date-avg": "2022-01-01T01:01:01.1"}
     mocker.patch("bp_analysis.abc_tracker.fits.getdata",
-                 return_value=(image, fake_hdr))
+                 return_value=(contour_image, fake_hdr))
     
-    time, data = abc_tracker.load_data("file", basic_config)
-    assert data.shape == (6, 6)
-    np.testing.assert_array_equal(data, 0)
+    basic_contour_config['main']['trim_image'] = 1
+    basic_contour_config['seeds']['use_laplacian'] = False
+    basic_contour_config['seeds']['mode'] = "absolute"
+    basic_contour_config['seeds']['threshold'] = 1.9
+    tracked_image = abc_tracker.fully_process_one_image(
+        "file", basic_contour_config)
+    assert tracked_image.source_shape == contour_image.shape
+    assert tracked_image.features[0].cutout_corner == (2, 3)

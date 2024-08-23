@@ -412,13 +412,10 @@ def scan_directory_for_data(dir):
     return files
 
 
-def load_data(file, config):
+def load_data(file):
     data, hdr = fits.getdata(file, header=True)
     time = datetime.strptime(hdr['date-avg'], "%Y-%m-%dT%H:%M:%S.%f")
     
-    trim = get_cfg(config, 'main', 'trim_image')
-    if trim:
-        data = data[trim:-trim, trim:-trim]
     return time, data
 
 
@@ -427,9 +424,12 @@ def fully_process_one_image(file, config) -> TrackedImage:
         with open(config, 'rb') as f:
             config = tomllib.load(f)
     
-    time, data = load_data(file, config)
+    time, data = load_data(file)
     tracked_image = TrackedImage(config=config, time=time, source_file=file,
                                  source_shape=data.shape)
+
+    if trim := get_cfg(config, 'main', 'trim_image'):
+        data = data[trim:-trim, trim:-trim]
     
     if get_cfg(config, 'main', 'also_id_negative'):
         negative_tracked_image = copy.deepcopy(tracked_image)
@@ -449,7 +449,6 @@ def fully_process_one_image(file, config) -> TrackedImage:
             feature.feature_class = 'positive'
         tracked_image.merge_features(negative_tracked_image)
     
-    trim = get_cfg(config, 'main', 'trim_image')
     if trim:
         for feature in tracked_image.features:
             feature.cutout_corner = (feature.cutout_corner[0] + trim,
