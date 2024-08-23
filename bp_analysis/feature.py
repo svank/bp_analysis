@@ -204,6 +204,15 @@ class TrackedImage:
             map[feature.indices] = feature.id
         return map
     
+    def seed_map(self):
+        map = np.zeros(self.source_shape, dtype=int)
+        for feature in self.features:
+            indices = feature.seed_cutout.nonzero()
+            indices[0] += feature.cutout_corner[0]
+            indices[1] += feature.cutout_corner[1]
+            map[indices] = 1
+        return map
+    
     def __getitem__(self, id) -> "Feature | TrackedImage":
         if isinstance(id, slice):
             id = (id, slice(0, -1, 1))
