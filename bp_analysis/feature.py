@@ -254,3 +254,10 @@ class TrackedImage:
             if feature.id == id:
                 return feature
         raise KeyError(f"Feature ID {id} not found")
+    
+    def __contains__(self, item):
+        try:
+            self[item]
+            return True
+        except KeyError:
+            return False

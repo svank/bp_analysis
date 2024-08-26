@@ -3,7 +3,9 @@
 # Amorphous, Bending Contortionist Tracker
 
 import copy
+import itertools
 from datetime import datetime
+import functools
 import multiprocessing
 import os
 import tomllib
@@ -15,7 +17,7 @@ import numpy as np
 import scipy as scp
 import scipy.ndimage
 import scipy.signal
-from tqdm.contrib.concurrent import process_map
+from tqdm.auto import tqdm
 
 from .config_utils import get_cfg
 from .feature import TrackedImage
@@ -381,29 +383,59 @@ def filter_size(tracked_image: TrackedImage, config):
                 continue
 
 
-def id_files(config_file, dir=None, silent=False, procs=None):
-    if isinstance(config_file, str):
-        with open(config_file, 'rb') as f:
+def id_files(config, dir=None, procs=None):
+    if isinstance(config, str):
+        with open(config, 'rb') as f:
             config = tomllib.load(f)
-    else:
-        config = config_file
-    if dir is None and 'dirs' in config and 'data_dir' in config['dirs']:
-        dir = config['dirs']['data_dir']
+        
+    if dir is None:
+        dir = get_cfg(config, 'dirs', 'data_dir')
     
-    files = scan_directory_for_data(dir, config)
-    iterable = [(file, config) for file in files]
-    if not silent:
-        tracked_images = process_map(wrapper, iterable, chunksize=1,
-                max_workers=procs if procs else os.cpu_count())
+    if isinstance(dir, list):
+        files = dir
     else:
-        with multiprocessing.Pool(processes=procs) as p:
-            tracked_images = p.starmap(
-                fully_process_one_image, iterable, chunksize=1)
+        files = scan_directory_for_data(dir)
+    
+    window_size = get_cfg(config, 'temporal-smoothing', 'window_size')
+    n_req = get_cfg(config, 'temporal-smoothing', 'n_required')
+    
+    feature_maps = None
+    seed_maps = [None] * window_size
+    tracked_images = [None] * window_size
+    source_files = [None] * window_size
+    insertion_index = -1
+    
+    second_stage_asyncs = []
+    
+    with (multiprocessing.Pool(procs) as pool1,
+          multiprocessing.Pool(procs) as pool2):
+        for file, (features, seeds, ti) in zip(
+                tqdm(files),
+                pool1.imap(id_image_first_half,
+                           zip(files, itertools.repeat(config)))):
+            insertion_index = (insertion_index + 1) % window_size
+            if feature_maps is None:
+                # Now that we have the size of an image
+                feature_maps = np.empty(
+                    (window_size, *features.shape), dtype=int)
+            
+            feature_maps[insertion_index] = features
+            seed_maps[insertion_index] = seeds
+            tracked_images[insertion_index] = ti
+            source_files[insertion_index] = file
+            
+            if any(sf is None for sf in source_files):
+                continue
+            
+            filtered_feature_map = np.sum(feature_maps, axis=0) >= n_req
+            
+            j = (insertion_index - window_size // 2) % window_size
+            second_stage_asyncs.append(pool2.apply_async(
+                id_image_second_half,
+                (config, filtered_feature_map, seed_maps[j], tracked_images[j],
+                 source_files[j])))
+        tracked_images = [result.get() for result in second_stage_asyncs]
     return tracked_images
-
-
-def wrapper(x):
-    fully_process_one_image(*x)
 
 
 def scan_directory_for_data(dir):
@@ -412,51 +444,46 @@ def scan_directory_for_data(dir):
     return files
 
 
-def load_data(file):
-    data, hdr = fits.getdata(file, header=True)
-    time = datetime.strptime(hdr['date-avg'], "%Y-%m-%dT%H:%M:%S.%f")
-    
-    return time, data
-
-
 def fully_process_one_image(file, config) -> TrackedImage:
     if isinstance(config, str):
         with open(config, 'rb') as f:
             config = tomllib.load(f)
     
-    time, data = load_data(file)
-    tracked_image = TrackedImage(config=config, time=time, source_file=file,
-                                 source_shape=data.shape)
-
-    if trim := get_cfg(config, 'main', 'trim_image'):
-        data = data[trim:-trim, trim:-trim]
+    features, seeds, ti = id_image_first_half(file, config)
+    ti = id_image_second_half(config, features, seeds, ti, file)
     
-    if get_cfg(config, 'main', 'also_id_negative'):
-        negative_tracked_image = copy.deepcopy(tracked_image)
-        neg_data = -data
-        mask = neg_data > 0
-        id_image(data, config, negative_tracked_image, mask)
-        for feature in negative_tracked_image.features:
-            feature.feature_class = 'negative'
-        mask = data > 0
+    return ti
+
+
+def load_file(im, config):
+    if isinstance(im, str):
+        source_file = im
+        im, hdr = fits.getdata(im, header=True)
+        time = datetime.strptime(hdr['date-avg'], "%Y-%m-%dT%H:%M:%S.%f")
+        if trim := get_cfg(config, 'main', 'trim_image'):
+            im = im[trim:-trim, trim:-trim]
     else:
-        mask = None
-    
-    id_image(data, config, tracked_image, mask)
-    
-    if get_cfg(config, 'main', 'also_id_negative'):
-        for feature in tracked_image.features:
-            feature.feature_class = 'positive'
-        tracked_image.merge_features(negative_tracked_image)
-    
-    if trim:
-        for feature in tracked_image.features:
-            feature.cutout_corner = (feature.cutout_corner[0] + trim,
-                                     feature.cutout_corner[1] + trim)
-    return tracked_image
+        time = None
+        source_file = None
+    return im, time, source_file
 
 
-def id_image(im, config, tracked_image, mask=None):
+def _unpack_args(func):
+    # If used with a multiprocessing Pool, you can only pass a single
+    # argument. If that's all we get for this function, unpack it into the
+    # multiple arguments it's supposed to be.
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        if len(args) == 1 and len(kwargs) == 0:
+            return func(*args[0])
+        return func(*args, **kwargs)
+    return wrapper
+
+
+@_unpack_args
+def id_image_first_half(im, config, mask=None):
+    im, time, source_file = load_file(im, config)
+    
     if get_cfg(config, 'main', 'subtract_data_min'):
         im = im - im.min()
     seeds, laplacian = find_seeds(im, config=config)
@@ -465,12 +492,44 @@ def id_image(im, config, tracked_image, mask=None):
     if mask is not None:
         features *= mask
     
+    tracked_image = TrackedImage(config=config, time=time,
+                                 source_file=source_file,
+                                 source_shape=im.shape)
+    
     struc = gen_kernel(get_cfg(config, 'main', 'connect_diagonal'))
     labeled_feats, n_feat = scipy.ndimage.label(features, struc)
     tracked_image.add_features_from_map(labeled_feats, im, seeds)
     
-    remove_edge_touchers(labeled_feats, tracked_image)
     remove_false_positives(
         labeled_feats, laplacian, config, im, seeds, tracked_image)
+    tracked_image.features = [f for f in tracked_image.features
+                              if f.flag == Flag.FALSE_POS]
+    for i, feature in enumerate(tracked_image.features):
+        features[feature.indices] = 0
+        feature.id = i + 1
+    return features, seeds, tracked_image
+
+
+@_unpack_args
+def id_image_second_half(config, features, seeds, tracked_image, im):
+    im, time, source_file = load_file(im, config)
+    
+    struc = gen_kernel(get_cfg(config, 'main', 'connect_diagonal'))
+    labeled_feats, n_feat = scipy.ndimage.label(features, struc)
+    # A little sleight of hand---make room for the ids of all the features
+    # we're about to add
+    for f in tracked_image.features:
+        f.id += n_feat
+    tracked_image.add_features_from_map(labeled_feats, im, seeds)
+    
+    remove_edge_touchers(labeled_feats, tracked_image)
     filter_close_neighbors(labeled_feats, config, tracked_image)
     filter_size(tracked_image, config)
+    
+    if trim := get_cfg(config, 'main', 'trim_image'):
+        for feature in tracked_image.features:
+            feature.cutout_corner = (feature.cutout_corner[0] + trim,
+                                     feature.cutout_corner[1] + trim)
+        tracked_image.source_shape = (tracked_image.source_shape[0] + 2 * trim,
+                                      tracked_image.source_shape[1] + 2 * trim)
+    return tracked_image

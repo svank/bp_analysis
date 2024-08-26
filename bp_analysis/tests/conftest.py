@@ -84,5 +84,9 @@ def basic_config():
         
         [lifetime-filter]
         min_lifetime = 1
+        
+        [temporal-smoothing]
+        window_size = 1
+        n_required = 1
     """)
     return config

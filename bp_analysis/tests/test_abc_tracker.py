@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import numpy as np
 import pytest
 
@@ -514,22 +516,27 @@ def test_filter_size_diagonal(basic_config):
 
 def test_fully_process_one_image(
         basic_config, mocker, map_with_features, feature_details_for_map):
-    
     basic_config['seeds']['use_laplacian'] = False
     basic_config['seeds']['mode'] = "absolute"
     basic_config['seeds']['threshold'] = 1.9
     basic_config['dilation']['rounds'] = 8
     basic_config['main']['connect_diagonal'] = True
-    
-    mocker.patch("bp_analysis.abc_tracker.load_data",
-                 return_value=(1, map_with_features))
+
+    fake_hdr = {"date-avg": "2022-01-01T01:01:01.1"}
+    mocker.patch("bp_analysis.abc_tracker.fits.getdata",
+                 return_value=(map_with_features, fake_hdr))
     
     result = abc_tracker.fully_process_one_image("input_file", basic_config)
     assert len(result.features) == len(feature_details_for_map)
     assert result.config is basic_config
-    assert result.time == 1
+    assert result.time == datetime.strptime(
+        fake_hdr['date-avg'], "%Y-%m-%dT%H:%M:%S.%f")
     assert result.source_file == "input_file"
     
+    validate_result_from_map_with_features(result, feature_details_for_map)
+
+
+def validate_result_from_map_with_features(result, feature_details_for_map):
     details_by_brightest_px = dict()
     for r, c, w, flag in feature_details_for_map:
         details_by_brightest_px[(r, c)] = (r, c, w, flag)
@@ -545,6 +552,12 @@ def test_fully_process_one_image(
             assert width // 2 == real_feature[2]
         assert found_feature.flag == real_feature[3]
         assert found_feature.is_good == (real_feature[3] == Flag.GOOD)
+    
+    # Ensure the feature IDs are unique
+    assert len(result.features) == len(set(f.id for f in result.features))
+    # Ensure the feature IDs are sequential from 1
+    for i in range(1, len(result.features) + 1):
+        assert i in result
 
 
 def test_trimmed_image(basic_contour_config, contour_image, mocker):
@@ -564,3 +577,49 @@ def test_trimmed_image(basic_contour_config, contour_image, mocker):
         "file", basic_contour_config)
     assert tracked_image.source_shape == contour_image.shape
     assert tracked_image.features[0].cutout_corner == (2, 3)
+
+
+def test_temporal_smoothing(
+        basic_config, mocker, map_with_features, feature_details_for_map):
+    basic_config['seeds']['use_laplacian'] = False
+    basic_config['seeds']['mode'] = "absolute"
+    basic_config['seeds']['threshold'] = 1.9
+    basic_config['dilation']['rounds'] = 8
+    basic_config['main']['connect_diagonal'] = True
+    basic_config['temporal-smoothing']['window_size'] = 3
+    basic_config['temporal-smoothing']['n_required'] = 2
+    
+    # Create another map with only a single pixel for each feature (to
+    # facilitate the assertion helper function)
+    middle_map = 0 * map_with_features
+    for r, c, w, f in feature_details_for_map:
+        middle_map[r, c] = 1
+    
+    fake_hdr = {"date-avg": "2022-01-01T01:01:01.1"}
+    def getdata(filename, **kwargs):
+        if filename[-6] in ('1', '3'):
+            return map_with_features, fake_hdr
+        return middle_map, fake_hdr
+    mocker.patch("bp_analysis.abc_tracker.fits.getdata", getdata)
+    mocker.patch("bp_analysis.abc_tracker.os.listdir",
+                 return_value=('1.fits', '2.fits', '3.fits'))
+    
+    feature_details_no_fpos = [f for f in feature_details_for_map
+                               if f[-1] != Flag.FALSE_POS]
+    tracked_images = abc_tracker.id_files(basic_config, dir='dir')
+    for ti in tracked_images:
+        validate_result_from_map_with_features(ti, feature_details_no_fpos)
+    
+    # Now raise the requirement so the middle frame doesn't have any features
+    # (as the only lit pixels are below the seed threshold)
+    basic_config['temporal-smoothing']['n_required'] = 3
+    tracked_images = abc_tracker.id_files(basic_config, dir='dir')
+    assert len(tracked_images[0].features) == 0
+    
+    # Now let's make everything appear as one-pixel features
+    middle_map[middle_map > 0] = 2
+    tracked_images = abc_tracker.id_files(basic_config, dir='dir')
+    assert len(tracked_images[0].features) == len(feature_details_no_fpos)
+    for f in tracked_images[0].features:
+        assert f.flag == Flag.TOO_SMALL
+        assert f.size == 1

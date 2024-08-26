@@ -2,10 +2,12 @@
 # also sets the default values for each
 
 [main]
-also_id_negative = false
 subtract_data_min = false
 connect_diagonal = true
 trim_image = 0
+
+[dirs]
+data_dir = '/insert/path/here'
 
 [seeds]
 n_sigma = 3
@@ -49,3 +51,7 @@ max_size_change_px = 10
 
 [lifetime-filter]
 min_lifetime = 5
+
+[temporal-smoothing]
+window_size = 7
+n_required = 4
