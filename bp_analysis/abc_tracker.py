@@ -383,6 +383,28 @@ def filter_size(tracked_image: TrackedImage, config):
                 continue
 
 
+def remove_overlapping_false_pos(tracked_image: TrackedImage):
+    """
+    If, in a central frame, a feature gets too big and is flagged as a false
+    positive, but in the surrounding frames the feature is good, then the
+    good feature will be filled in in the central frame by the temporal
+    smoothing, but there will already be a false positive feature there. So
+    here we remove false positive features that overlap another feature.
+    """
+    false_poses = []
+    others = []
+    for feature in tracked_image.features:
+        if feature.flag == Flag.FALSE_POS:
+            false_poses.append(feature)
+        else:
+            others.append(feature)
+    for false_pos in false_poses:
+        for feature in others:
+            if false_pos.overlaps(feature):
+                tracked_image.features.remove(false_pos)
+                break
+
+
 def id_files(config, dir=None, procs=None):
     if isinstance(config, str):
         with open(config, 'rb') as f:
@@ -525,6 +547,7 @@ def id_image_second_half(config, features, seeds, tracked_image, im):
     remove_edge_touchers(labeled_feats, tracked_image)
     filter_close_neighbors(labeled_feats, config, tracked_image)
     filter_size(tracked_image, config)
+    remove_overlapping_false_pos(tracked_image)
     
     if trim := get_cfg(config, 'main', 'trim_image'):
         for feature in tracked_image.features:

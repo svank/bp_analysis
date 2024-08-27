@@ -623,3 +623,47 @@ def test_temporal_smoothing(
     for f in tracked_images[0].features:
         assert f.flag == Flag.TOO_SMALL
         assert f.size == 1
+
+
+def test_remove_overlapping_fpos(basic_config, mocker):
+    basic_config['seeds']['use_laplacian'] = False
+    basic_config['seeds']['mode'] = "absolute"
+    basic_config['seeds']['threshold'] = 1.9
+    basic_config['dilation']['rounds'] = 8
+    basic_config['main']['connect_diagonal'] = True
+    basic_config['temporal-smoothing'] = {}
+    basic_config['temporal-smoothing']['window_size'] = 3
+    basic_config['temporal-smoothing']['n_required'] = 2
+    
+    def add_feature(image, r, c, half_width):
+        x, y = np.meshgrid(
+            np.arange(2 * half_width + 1, dtype=float),
+            np.arange(2 * half_width + 1, dtype=float))
+        x -= half_width
+        y -= half_width
+        x /= x.max()
+        y /= y.max()
+        d = -x ** 2 + -y ** 2
+        d += -d.min()
+        image[r - half_width:r + half_width + 1,
+        c - half_width:c + half_width + 1] = d
+    
+    fpos_image = np.zeros((50, 50))
+    add_feature(fpos_image, 25, 25, 12)
+    good_image = np.zeros((50, 50))
+    add_feature(good_image, 25, 25, 8)
+    
+    fake_hdr = {"date-avg": "2022-01-01T01:01:01.1"}
+    
+    def getdata(filename, **kwargs):
+        if filename[-6] in ('1', '3'):
+            return good_image, fake_hdr
+        return fpos_image, fake_hdr
+    
+    mocker.patch("bp_analysis.abc_tracker.fits.getdata", getdata)
+    mocker.patch("bp_analysis.abc_tracker.os.listdir",
+                 return_value=('1.fits', '2.fits', '3.fits'))
+
+    tracked_images = abc_tracker.id_files(basic_config, dir='dir')
+    assert len(tracked_images[0].features) == 1
+    assert tracked_images[0].features[0].flag == Flag.GOOD
