@@ -132,9 +132,14 @@ class FeatureSequence:
         feature.sequence = None
     
     def __repr__(self):
+        if len(self.features) < 7:
+            fid_str = ' '.join(str(f.id) for f in self.features)
+            fid_str = f", feat ids [{fid_str}]"
+        else:
+            fid_str = ""
         return (f"<FeatureSequence {self.id}, {len(self.features)} "
                 f"{repr(self.feature_flag)} feats, {repr(self.flag)}, "
-                f"{repr(self.origin)} to {repr(self.fate)}>")
+                f"{repr(self.origin)} to {repr(self.fate)}{fid_str}>")
 
 
 class TrackedImage:
