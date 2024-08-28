@@ -472,6 +472,44 @@ def test_merge_becomes_complex(basic_config):
         assert feature.sequence.origin_sequences == sequences[:2]
 
 
+def test_merge_becomes_complex_from_single_overlap(basic_config):
+    img = np.ones((2, 2))
+    parent1 = Feature(1, (5, 10), img, img, img)
+    parent2 = Feature(2, (6, 11), img, img, img)
+    
+    child1 = Feature(3, (5, 10), img, img, img)
+    # This feature only overlaps one parent which is already marked as a
+    # merge, turning it into a complex
+    child2 = Feature(4, (7, 12), img, img, img)
+    
+    tracked_image1 = TrackedImage(time=datetime(1, 1, 1))
+    tracked_image1.add_features(parent1, parent2)
+    tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
+    tracked_image2.add_features(child1, child2)
+    
+    tracked_image_set = link_features.link_features(
+        [tracked_image1, tracked_image2],
+        basic_config)
+    
+    sequences = tracked_image_set.sequences
+    assert all(s.feature_flag == Flag.GOOD for s in sequences)
+    assert len(sequences) == 4
+    for seq in sequences:
+        assert len(seq) == 1
+    
+    for feature in [parent1, parent2]:
+        assert feature.sequence.origin == EventFlag.FIRST_IMAGE
+        assert feature.sequence.fate == EventFlag.COMPLEX
+    assert parent1.sequence.fate_sequences == sequences[2:3]
+    assert parent2.sequence.fate_sequences == sequences[2:]
+    
+    for feature in [child1, child2]:
+        assert feature.sequence.origin == EventFlag.COMPLEX
+        assert feature.sequence.fate == EventFlag.LAST_IMAGE
+    assert child1.sequence.origin_sequences == sequences[:2]
+    assert child2.sequence.origin_sequences == sequences[1:2]
+
+
 def test_sequence_break_on_flag_change_simple_sequence(basic_config):
     img = np.ones((2, 2))
     feature1 = Feature(1, (5, 10), img, img, img)

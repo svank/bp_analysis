@@ -58,7 +58,8 @@ def link_features(tracked_images: list[TrackedImage],
                 # be a split!
                 overlap = overlaps[0]
                 if feature.time in overlap.sequence:
-                    # This is a split!
+                    # This is a split! Off of a feature with an already-found
+                    # continuation into this image
                     sibling = overlap.sequence[feature.time]
                     overlap.sequence.remove_feature(sibling)
                     
@@ -89,6 +90,22 @@ def link_features(tracked_images: list[TrackedImage],
                     overlap.sequence.fate_sequences.append(sequence)
                     sequence.origin_sequences.append(overlap.sequence)
                     sequence.origin_event_id = overlap.sequence.fate_event_id
+                elif overlap.sequence.fate == EventFlag.MERGE:
+                    # We're discovering that this merge is actually a complex
+                    sequence = FeatureSequence()
+                    sequence.add_features(feature)
+                    feature_sequences.append(sequence)
+                    
+                    seq = overlap.sequence
+                    seq.fate_sequences.append(sequence)
+                    sequence.origin_sequences.append(seq)
+                    sequence.origin_event_id = seq.origin_event_id
+                    
+                    inputs, outputs = _walk_for_event_inputs_outputs(sequence)
+                    for input in inputs:
+                        input.fate = EventFlag.COMPLEX
+                    for output in outputs:
+                        output.origin = EventFlag.COMPLEX
                 else:
                     # This is a plain ol' continuation
                     sequence = overlaps[0].sequence
