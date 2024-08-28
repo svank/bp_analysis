@@ -7,7 +7,7 @@ import pytest
 import scipy.ndimage
 
 from ..feature import Feature, FeatureSequence, TrackedImage
-from ..status import Event, Flag
+from ..status import Flag
 
 
 @pytest.fixture

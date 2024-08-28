@@ -7,7 +7,7 @@ import numpy as np
 import scipy.ndimage
 
 from . import feature_plotting
-from .status import Flag, Event, SequenceFlag
+from .status import Flag, EventFlag, SequenceFlag
 
 
 class Feature(feature_plotting.FeaturePlottingMixin):
@@ -91,8 +91,8 @@ class FeatureSequence:
     def __init__(self):
         self.id = None
         self.features: list[Feature] = []
-        self.origin = Event.NORMAL
-        self.fate = Event.NORMAL
+        self.origin = EventFlag.NORMAL
+        self.fate = EventFlag.NORMAL
         self.origin_sequences: list[FeatureSequence] = []
         self.fate_sequences: list[FeatureSequence] = []
         self.feature_flag = None

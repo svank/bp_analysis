@@ -34,7 +34,7 @@ class SequenceFlag(IntEnum):
         return str
 
 
-class Event(IntEnum):
+class EventFlag(IntEnum):
     NORMAL = 200
     MERGE = 201
     SPLIT = 202

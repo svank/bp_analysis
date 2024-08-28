@@ -1,6 +1,6 @@
 from .. import link_features
 from ..feature import *
-from ..status import Event, Flag, SequenceFlag
+from ..status import EventFlag, Flag, SequenceFlag
 
 
 def test_overlapping(basic_config):
@@ -29,8 +29,8 @@ def test_overlapping(basic_config):
     assert feature2 in sequence
     assert feature3 in sequence
     
-    assert sequence.origin == Event.FIRST_IMAGE
-    assert sequence.fate == Event.LAST_IMAGE
+    assert sequence.origin == EventFlag.FIRST_IMAGE
+    assert sequence.fate == EventFlag.LAST_IMAGE
     
     assert sequence.id == 1
 
@@ -62,12 +62,12 @@ def test_non_overlapping(basic_config):
     assert feature2 in sequences[1]
     assert feature3 in sequences[2]
     
-    assert sequences[0].origin == Event.FIRST_IMAGE
-    assert sequences[0].fate == Event.NORMAL
-    assert sequences[1].origin == Event.NORMAL
-    assert sequences[1].fate == Event.NORMAL
-    assert sequences[2].origin == Event.NORMAL
-    assert sequences[2].fate == Event.LAST_IMAGE
+    assert sequences[0].origin == EventFlag.FIRST_IMAGE
+    assert sequences[0].fate == EventFlag.NORMAL
+    assert sequences[1].origin == EventFlag.NORMAL
+    assert sequences[1].fate == EventFlag.NORMAL
+    assert sequences[2].origin == EventFlag.NORMAL
+    assert sequences[2].fate == EventFlag.LAST_IMAGE
     
     for i, seq in enumerate(sequences):
         assert seq.id == i + 1
@@ -95,15 +95,15 @@ def test_split(basic_config):
     assert len(sequences[1].features) == 1
     assert len(sequences[2].features) == 1
     
-    assert sequences[0].origin == Event.FIRST_IMAGE
-    assert sequences[0].fate == Event.SPLIT
+    assert sequences[0].origin == EventFlag.FIRST_IMAGE
+    assert sequences[0].fate == EventFlag.SPLIT
     assert feature1 in sequences[0]
     assert sequences[1] in sequences[0].fate_sequences
     assert sequences[2] in sequences[0].fate_sequences
     
     for seq, feat in zip(sequences[1:], [feature2, feature3]):
-        assert seq.origin == Event.SPLIT
-        assert seq.fate == Event.LAST_IMAGE
+        assert seq.origin == EventFlag.SPLIT
+        assert seq.fate == EventFlag.LAST_IMAGE
         assert feat in seq.features
         assert sequences[0] in seq.origin_sequences
     
@@ -135,16 +135,16 @@ def test_three_way_split(basic_config):
     assert len(sequences[2].features) == 1
     assert len(sequences[3].features) == 1
     
-    assert sequences[0].origin == Event.FIRST_IMAGE
-    assert sequences[0].fate == Event.SPLIT
+    assert sequences[0].origin == EventFlag.FIRST_IMAGE
+    assert sequences[0].fate == EventFlag.SPLIT
     assert feature1 in sequences[0]
     assert sequences[1] in sequences[0].fate_sequences
     assert sequences[2] in sequences[0].fate_sequences
     assert sequences[3] in sequences[0].fate_sequences
     
     for seq, feat in zip(sequences[1:], [feature2, feature3, feature4]):
-        assert seq.origin == Event.SPLIT
-        assert seq.fate == Event.LAST_IMAGE
+        assert seq.origin == EventFlag.SPLIT
+        assert seq.fate == EventFlag.LAST_IMAGE
         assert feat in seq.features
         assert sequences[0] in seq.origin_sequences
     
@@ -175,13 +175,13 @@ def test_merge(basic_config):
     assert len(sequences[2].features) == 1
     
     for seq, feat in zip(sequences[:2], [feature2, feature3]):
-        assert seq.origin == Event.FIRST_IMAGE
-        assert seq.fate == Event.MERGE
+        assert seq.origin == EventFlag.FIRST_IMAGE
+        assert seq.fate == EventFlag.MERGE
         assert feat in seq.features
         assert sequences[2] in seq.fate_sequences
     
-    assert sequences[2].origin == Event.MERGE
-    assert sequences[2].fate == Event.LAST_IMAGE
+    assert sequences[2].origin == EventFlag.MERGE
+    assert sequences[2].fate == EventFlag.LAST_IMAGE
     assert sequences[0] in sequences[2].origin_sequences
     assert sequences[1] in sequences[2].origin_sequences
     assert feature1 in sequences[2]
@@ -215,13 +215,13 @@ def test_three_way_merge(basic_config):
     assert len(sequences[3].features) == 1
     
     for seq, feat in zip(sequences[:2], [feature2, feature3, feature4]):
-        assert seq.origin == Event.FIRST_IMAGE
-        assert seq.fate == Event.MERGE
+        assert seq.origin == EventFlag.FIRST_IMAGE
+        assert seq.fate == EventFlag.MERGE
         assert feat in seq.features
         assert sequences[3] in seq.fate_sequences
     
-    assert sequences[3].origin == Event.MERGE
-    assert sequences[3].fate == Event.LAST_IMAGE
+    assert sequences[3].origin == EventFlag.MERGE
+    assert sequences[3].fate == EventFlag.LAST_IMAGE
     assert sequences[0] in sequences[3].origin_sequences
     assert sequences[1] in sequences[3].origin_sequences
     assert sequences[2] in sequences[3].origin_sequences
@@ -264,8 +264,8 @@ def test_split_and_simple_becomes_complex(basic_config):
         assert len(seq) == 1
     
     for sequence, feature in zip(sequences[:2], [parent1, parent2]):
-        assert sequence.origin == Event.FIRST_IMAGE
-        assert sequence.fate == Event.COMPLEX
+        assert sequence.origin == EventFlag.FIRST_IMAGE
+        assert sequence.fate == EventFlag.COMPLEX
         assert feature in sequence
     
     assert split1.sequence in parent1.sequence.fate_sequences
@@ -277,16 +277,16 @@ def test_split_and_simple_becomes_complex(basic_config):
     assert simple2.sequence in parent2.sequence.fate_sequences
     
     for seq, feat in zip(sequences[2:], [split1, split2, merge]):
-        assert seq.origin == Event.COMPLEX
-        assert seq.fate == Event.LAST_IMAGE
+        assert seq.origin == EventFlag.COMPLEX
+        assert seq.fate == EventFlag.LAST_IMAGE
         assert feat in seq
         assert parent1.sequence in seq.origin_sequences
     
     assert parent2.sequence in merge.sequence.origin_sequences
     
     for feature in (simple1, simple2):
-        assert feature.sequence.origin == Event.COMPLEX
-        assert feature.sequence.fate == Event.LAST_IMAGE
+        assert feature.sequence.origin == EventFlag.COMPLEX
+        assert feature.sequence.fate == EventFlag.LAST_IMAGE
         assert parent2.sequence in feature.sequence.origin_sequences
     
     for i, seq in enumerate(sequences):
@@ -322,8 +322,8 @@ def test_split_becomes_complex(basic_config):
         assert len(seq) == 1
     
     for sequence, feature in zip(sequences[:2], [parent1, parent2]):
-        assert sequence.origin == Event.FIRST_IMAGE
-        assert sequence.fate == Event.COMPLEX
+        assert sequence.origin == EventFlag.FIRST_IMAGE
+        assert sequence.fate == EventFlag.COMPLEX
         assert feature in sequence
     
     assert split1.sequence in parent1.sequence.fate_sequences
@@ -333,8 +333,8 @@ def test_split_becomes_complex(basic_config):
     assert merge.sequence in parent2.sequence.fate_sequences
     
     for seq, feat in zip(sequences[2:], [split1, split2, merge]):
-        assert seq.origin == Event.COMPLEX
-        assert seq.fate == Event.LAST_IMAGE
+        assert seq.origin == EventFlag.COMPLEX
+        assert seq.fate == EventFlag.LAST_IMAGE
         assert feat in seq
         assert parent1.sequence in seq.origin_sequences
     
@@ -376,8 +376,8 @@ def test_simple_becomes_complex(basic_config):
         assert len(seq) == 1
     
     for sequence, feature in zip(sequences[:2], [parent1, parent2]):
-        assert sequence.origin == Event.FIRST_IMAGE
-        assert sequence.fate == Event.COMPLEX
+        assert sequence.origin == EventFlag.FIRST_IMAGE
+        assert sequence.fate == EventFlag.COMPLEX
         assert feature in sequence
     
     assert simple1.sequence in parent1.sequence.fate_sequences
@@ -388,8 +388,8 @@ def test_simple_becomes_complex(basic_config):
     assert simple3.sequence in parent2.sequence.fate_sequences
     
     for seq, feat in zip(sequences[2:], [merge, simple1, simple2, simple3]):
-        assert seq.origin == Event.COMPLEX
-        assert seq.fate == Event.LAST_IMAGE
+        assert seq.origin == EventFlag.COMPLEX
+        assert seq.fate == EventFlag.LAST_IMAGE
         assert feat in seq
     
     assert parent1.sequence in simple1.sequence.origin_sequences
@@ -426,13 +426,13 @@ def test_merge_becomes_complex(basic_config):
         assert len(seq) == 1
     
     for feature in [parent1, parent2]:
-        assert feature.sequence.origin == Event.FIRST_IMAGE
-        assert feature.sequence.fate == Event.COMPLEX
+        assert feature.sequence.origin == EventFlag.FIRST_IMAGE
+        assert feature.sequence.fate == EventFlag.COMPLEX
         assert feature.sequence.fate_sequences == sequences[2:]
     
     for feature in [child1, child2]:
-        assert feature.sequence.origin == Event.COMPLEX
-        assert feature.sequence.fate == Event.LAST_IMAGE
+        assert feature.sequence.origin == EventFlag.COMPLEX
+        assert feature.sequence.fate == EventFlag.LAST_IMAGE
         assert feature.sequence.origin_sequences == sequences[:2]
 
 
@@ -479,7 +479,7 @@ def test_sequence_break_on_flag_change_simple_sequence(basic_config):
     assert sequences[1].origin_sequences == [sequences[0]]
     assert sequences[2].origin_sequences == [sequences[1]]
     
-    assert sequences[0].origin == Event.FIRST_IMAGE
+    assert sequences[0].origin == EventFlag.FIRST_IMAGE
     
     assert sequences[0].fate == sequences[1].feature_flag
     assert sequences[1].origin == sequences[0].feature_flag
@@ -487,7 +487,7 @@ def test_sequence_break_on_flag_change_simple_sequence(basic_config):
     assert sequences[1].fate == sequences[2].feature_flag
     assert sequences[2].origin == sequences[1].feature_flag
     
-    assert sequences[2].fate == Event.LAST_IMAGE
+    assert sequences[2].fate == EventFlag.LAST_IMAGE
 
 
 def test_sequence_break_on_flag_change_merge(basic_config):
@@ -532,34 +532,34 @@ def test_sequence_break_on_flag_change_merge(basic_config):
         if sequence.features == [parent1A]:
             assert sequence.fate_sequences == [parent1B.sequence]
             assert sequence.origin_sequences == []
-            assert sequence.origin == Event.FIRST_IMAGE
+            assert sequence.origin == EventFlag.FIRST_IMAGE
             assert sequence.fate == Flag.EDGE
         elif sequence.features == [parent2A]:
             assert sequence.fate_sequences == [parent2B.sequence]
             assert sequence.origin_sequences == []
-            assert sequence.origin == Event.FIRST_IMAGE
+            assert sequence.origin == EventFlag.FIRST_IMAGE
             assert sequence.fate == Flag.GOOD
         elif sequence.features == [parent1B]:
             assert sequence.fate_sequences == [childA.sequence]
             assert sequence.origin_sequences == [parent1A.sequence]
             assert sequence.origin == Flag.GOOD
-            assert sequence.fate == Event.MERGE
+            assert sequence.fate == EventFlag.MERGE
         elif sequence.features == [parent2B]:
             assert sequence.fate_sequences == [childA.sequence]
             assert sequence.origin_sequences == [parent2A.sequence]
             assert sequence.origin == Flag.TOO_BIG
-            assert sequence.fate == Event.MERGE
+            assert sequence.fate == EventFlag.MERGE
         elif sequence.features == [childA, childB]:
             assert sequence.fate_sequences == [childC.sequence]
             assert sequence.origin_sequences == [
                 parent1B.sequence, parent2B.sequence]
-            assert sequence.origin == Event.MERGE
+            assert sequence.origin == EventFlag.MERGE
             assert sequence.fate == Flag.CLOSE_NEIGHBOR
         elif sequence.features == [childC]:
             assert sequence.fate_sequences == []
             assert sequence.origin_sequences == [childB.sequence]
             assert sequence.origin == Flag.GOOD
-            assert sequence.fate == Event.LAST_IMAGE
+            assert sequence.fate == EventFlag.LAST_IMAGE
         else:
             raise ValueError("Unexpected sequence")
 
@@ -606,34 +606,34 @@ def test_sequence_break_on_flag_change_split(basic_config):
         if sequence.features == [parentA]:
             assert sequence.fate_sequences == [parentB.sequence]
             assert sequence.origin_sequences == []
-            assert sequence.origin == Event.FIRST_IMAGE
+            assert sequence.origin == EventFlag.FIRST_IMAGE
             assert sequence.fate == Flag.EDGE
         elif sequence.features == [parentB]:
             assert sequence.fate_sequences == [
                 child1A.sequence, child2A.sequence]
             assert sequence.origin_sequences == [parentA.sequence]
             assert sequence.origin == Flag.GOOD
-            assert sequence.fate == Event.SPLIT
+            assert sequence.fate == EventFlag.SPLIT
         elif sequence.features == [child1A, child1B]:
             assert sequence.fate_sequences == [child1C.sequence]
             assert sequence.origin_sequences == [parentB.sequence]
-            assert sequence.origin == Event.SPLIT
+            assert sequence.origin == EventFlag.SPLIT
             assert sequence.fate == Flag.TOO_BIG
         elif sequence.features == [child1C]:
             assert sequence.fate_sequences == []
             assert sequence.origin_sequences == [child1B.sequence]
             assert sequence.origin == Flag.GOOD
-            assert sequence.fate == Event.LAST_IMAGE
+            assert sequence.fate == EventFlag.LAST_IMAGE
         elif sequence.features == [child2A, child2B]:
             assert sequence.fate_sequences == [child2C.sequence]
             assert sequence.origin_sequences == [parentB.sequence]
-            assert sequence.origin == Event.SPLIT
+            assert sequence.origin == EventFlag.SPLIT
             assert sequence.fate == Flag.GOOD
         elif sequence.features == [child2C]:
             assert sequence.fate_sequences == []
             assert sequence.origin_sequences == [child2B.sequence]
             assert sequence.origin == Flag.TOO_SMALL
-            assert sequence.fate == Event.LAST_IMAGE
+            assert sequence.fate == EventFlag.LAST_IMAGE
         else:
             raise ValueError("Unexpected sequence")
 
@@ -685,47 +685,47 @@ def test_sequence_break_on_flag_change_complex(basic_config):
         if sequence.features == [parent1A]:
             assert sequence.fate_sequences == [parent1B.sequence]
             assert sequence.origin_sequences == []
-            assert sequence.origin == Event.FIRST_IMAGE
+            assert sequence.origin == EventFlag.FIRST_IMAGE
             assert sequence.fate == Flag.EDGE
         elif sequence.features == [parent1B]:
             assert sequence.fate_sequences == [
                 child1A.sequence, child2A.sequence]
             assert sequence.origin_sequences == [parent1A.sequence]
             assert sequence.origin == Flag.GOOD
-            assert sequence.fate == Event.COMPLEX
+            assert sequence.fate == EventFlag.COMPLEX
         elif sequence.features == [parent2A]:
             assert sequence.fate_sequences == [parent2B.sequence]
             assert sequence.origin_sequences == []
-            assert sequence.origin == Event.FIRST_IMAGE
+            assert sequence.origin == EventFlag.FIRST_IMAGE
             assert sequence.fate == Flag.GOOD
         elif sequence.features == [parent2B]:
             assert sequence.fate_sequences == [
                 child1A.sequence, child2A.sequence]
             assert sequence.origin_sequences == [parent2A.sequence]
             assert sequence.origin == Flag.TOO_BIG
-            assert sequence.fate == Event.COMPLEX
+            assert sequence.fate == EventFlag.COMPLEX
         elif sequence.features == [child1A, child1B]:
             assert sequence.fate_sequences == [child1C.sequence]
             assert sequence.origin_sequences == [
                 parent1B.sequence, parent2B.sequence]
-            assert sequence.origin == Event.COMPLEX
+            assert sequence.origin == EventFlag.COMPLEX
             assert sequence.fate == Flag.TOO_BIG
         elif sequence.features == [child1C]:
             assert sequence.fate_sequences == []
             assert sequence.origin_sequences == [child1B.sequence]
             assert sequence.origin == Flag.GOOD
-            assert sequence.fate == Event.LAST_IMAGE
+            assert sequence.fate == EventFlag.LAST_IMAGE
         elif sequence.features == [child2A, child2B]:
             assert sequence.fate_sequences == [child2C.sequence]
             assert sequence.origin_sequences == [
                 parent1B.sequence, parent2B.sequence]
-            assert sequence.origin == Event.COMPLEX
+            assert sequence.origin == EventFlag.COMPLEX
             assert sequence.fate == Flag.GOOD
         elif sequence.features == [child2C]:
             assert sequence.fate_sequences == []
             assert sequence.origin_sequences == [child2B.sequence]
             assert sequence.origin == Flag.TOO_SMALL
-            assert sequence.fate == Event.LAST_IMAGE
+            assert sequence.fate == EventFlag.LAST_IMAGE
         else:
             raise ValueError("Unexpected sequence")
 
@@ -774,15 +774,15 @@ def test_sequence_break_on_size_change_pct(basic_config):
     assert sequences[1].origin_sequences == [sequences[0]]
     assert sequences[2].origin_sequences == [sequences[1]]
     
-    assert sequences[0].origin == Event.FIRST_IMAGE
+    assert sequences[0].origin == EventFlag.FIRST_IMAGE
     
-    assert sequences[0].fate == Event.SIZE_CHANGE_PCT
-    assert sequences[1].origin == Event.SIZE_CHANGE_PCT
+    assert sequences[0].fate == EventFlag.SIZE_CHANGE_PCT
+    assert sequences[1].origin == EventFlag.SIZE_CHANGE_PCT
     
-    assert sequences[1].fate == Event.SIZE_CHANGE_PCT
-    assert sequences[2].origin == Event.SIZE_CHANGE_PCT
+    assert sequences[1].fate == EventFlag.SIZE_CHANGE_PCT
+    assert sequences[2].origin == EventFlag.SIZE_CHANGE_PCT
     
-    assert sequences[2].fate == Event.LAST_IMAGE
+    assert sequences[2].fate == EventFlag.LAST_IMAGE
 
 
 def test_sequence_break_on_size_change_px(basic_config):
@@ -828,15 +828,15 @@ def test_sequence_break_on_size_change_px(basic_config):
     assert sequences[1].origin_sequences == [sequences[0]]
     assert sequences[2].origin_sequences == [sequences[1]]
     
-    assert sequences[0].origin == Event.FIRST_IMAGE
+    assert sequences[0].origin == EventFlag.FIRST_IMAGE
     
-    assert sequences[0].fate == Event.SIZE_CHANGE_PX
-    assert sequences[1].origin == Event.SIZE_CHANGE_PX
+    assert sequences[0].fate == EventFlag.SIZE_CHANGE_PX
+    assert sequences[1].origin == EventFlag.SIZE_CHANGE_PX
     
-    assert sequences[1].fate == Event.SIZE_CHANGE_PX
-    assert sequences[2].origin == Event.SIZE_CHANGE_PX
+    assert sequences[1].fate == EventFlag.SIZE_CHANGE_PX
+    assert sequences[2].origin == EventFlag.SIZE_CHANGE_PX
     
-    assert sequences[2].fate == Event.LAST_IMAGE
+    assert sequences[2].fate == EventFlag.LAST_IMAGE
 
 
 def test_min_lifetime(basic_config):

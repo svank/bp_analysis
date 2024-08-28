@@ -5,7 +5,7 @@ import numpy as np
 
 from .config_utils import get_cfg
 from .feature import FeatureSequence, TrackedImage
-from .status import Event, SequenceFlag
+from .status import EventFlag, SequenceFlag
 
 
 def link_features(tracked_images: list[TrackedImage],
@@ -37,7 +37,7 @@ def link_features(tracked_images: list[TrackedImage],
                 sequence = FeatureSequence()
                 sequence.add_features(feature)
                 feature_sequences.append(sequence)
-            elif any(s.fate == Event.COMPLEX for s in overlap_sequences):
+            elif any(s.fate == EventFlag.COMPLEX for s in overlap_sequences):
                 # We're connecting to an already-known complex cluster
                 sequence = FeatureSequence()
                 sequence.add_features(feature)
@@ -65,17 +65,17 @@ def link_features(tracked_images: list[TrackedImage],
                     
                     overlap.sequence.fate_sequences.extend(
                         [sibling_sequence, sequence])
-                    overlap.sequence.fate = Event.SPLIT
+                    overlap.sequence.fate = EventFlag.SPLIT
                     
                     for seq in (sequence, sibling_sequence):
-                        seq.origin = Event.SPLIT
+                        seq.origin = EventFlag.SPLIT
                         seq.origin_sequences.append(overlap.sequence)
-                elif overlap.sequence.fate == Event.SPLIT:
+                elif overlap.sequence.fate == EventFlag.SPLIT:
                     # This is a multi-split!
                     sequence = FeatureSequence()
                     sequence.add_features(feature)
                     feature_sequences.append(sequence)
-                    sequence.origin = Event.SPLIT
+                    sequence.origin = EventFlag.SPLIT
                     overlap.sequence.fate_sequences.append(sequence)
                     sequence.origin_sequences.append(overlap.sequence)
                 else:
@@ -88,7 +88,7 @@ def link_features(tracked_images: list[TrackedImage],
                 sequence.add_features(feature)
                 feature_sequences.append(sequence)
                 if (any(feature.time in f.sequence for f in overlaps)
-                        or any(s.fate in (Event.SPLIT, Event.MERGE)
+                        or any(s.fate in (EventFlag.SPLIT, EventFlag.MERGE)
                                for s in overlap_sequences)):
                     # One of the merge inputs already has a recorded
                     # continuation in this frame, so we're discovering a
@@ -110,23 +110,23 @@ def link_features(tracked_images: list[TrackedImage],
                     _walk_and_mark_as_complex(sequence)
                 else:
                     # This is a plain ol' merger
-                    sequence.origin = Event.MERGE
                     for f in overlaps:
                         sequence.origin_sequences.append(f.sequence)
+                    sequence.origin = EventFlag.MERGE
                     for feat in overlaps:
                         seq = feat.sequence
-                        seq.fate = Event.MERGE
+                        seq.fate = EventFlag.MERGE
                         seq.fate_sequences.append(sequence)
         
         if image is tracked_images[0]:
             for sequence in feature_sequences:
-                sequence.origin = Event.FIRST_IMAGE
+                sequence.origin = EventFlag.FIRST_IMAGE
         prev_frame_features = image.features
     
     for sequence in feature_sequences:
-        if (sequence.fate == Event.NORMAL
+        if (sequence.fate == EventFlag.NORMAL
                 and tracked_images[-1].time in sequence):
-            sequence.fate = Event.LAST_IMAGE
+            sequence.fate = EventFlag.LAST_IMAGE
     
     #
     ## Stage 2: Breaking chains apart
@@ -159,9 +159,9 @@ def link_features(tracked_images: list[TrackedImage],
                 new_sequence.fate_sequences = sequence.fate_sequences
                 new_sequence.origin_sequences.append(sequence)
                 if bad_size_pct:
-                    new_sequence.origin = Event.SIZE_CHANGE_PCT
+                    new_sequence.origin = EventFlag.SIZE_CHANGE_PCT
                 elif bad_size_px:
-                    new_sequence.origin = Event.SIZE_CHANGE_PX
+                    new_sequence.origin = EventFlag.SIZE_CHANGE_PX
                 else:
                     new_sequence.origin = sequence.feature_flag
                 
@@ -170,9 +170,9 @@ def link_features(tracked_images: list[TrackedImage],
                     seq.origin_sequences.append(new_sequence)
                 
                 if bad_size_pct:
-                    sequence.fate = Event.SIZE_CHANGE_PCT
+                    sequence.fate = EventFlag.SIZE_CHANGE_PCT
                 elif bad_size_px:
-                    sequence.fate = Event.SIZE_CHANGE_PX
+                    sequence.fate = EventFlag.SIZE_CHANGE_PX
                 else:
                     sequence.fate = feature.flag
                 
@@ -204,20 +204,20 @@ def link_features(tracked_images: list[TrackedImage],
 
 
 def _walk_and_mark_as_complex(new_sequence):
-    new_sequence.origin = Event.COMPLEX
+    new_sequence.origin = EventFlag.COMPLEX
     for parent in new_sequence.origin_sequences:
         # Each of the input features must be marked as complex
-        if parent.fate == Event.COMPLEX:
+        if parent.fate == EventFlag.COMPLEX:
             continue
-        parent.fate = Event.COMPLEX
+        parent.fate = EventFlag.COMPLEX
         for sibling_seq in parent.fate_sequences:
             # Any other children they have also must be marked
-            if sibling_seq.origin == Event.COMPLEX:
+            if sibling_seq.origin == EventFlag.COMPLEX:
                 continue
-            sibling_seq.origin = Event.COMPLEX
+            sibling_seq.origin = EventFlag.COMPLEX
             for other_parent in sibling_seq.origin_sequences:
                 # And any of their parents as well
-                other_parent.fate = Event.COMPLEX
+                other_parent.fate = EventFlag.COMPLEX
                 # But we don't need to go to p's children, as if
                 # there are any, then s should already have been
                 # marked as complex
