@@ -111,6 +111,42 @@ def test_split(basic_config):
         assert seq.id == i + 1
 
 
+def test_split_size_ratio(basic_config):
+    small_img = np.ones((1, 1))
+    big_img = np.ones((5, 5))
+    feature1 = Feature(1, (5, 10), big_img, big_img, big_img)
+    feature2 = Feature(2, (6, 11), small_img, small_img, small_img)
+    feature3 = Feature(3, (4, 9), big_img, big_img, big_img)
+    
+    tracked_image1 = TrackedImage(time=datetime(1, 1, 1))
+    tracked_image1.add_features(feature1)
+    tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
+    tracked_image2.add_features(feature2, feature3)
+    
+    basic_config['linking']['persist_if_size_ratio_below'] = 2 / 25
+    tracked_image_set = link_features.link_features(
+        [tracked_image1, tracked_image2],
+        basic_config)
+    
+    sequences = tracked_image_set.sequences
+    assert all(s.feature_flag == Flag.GOOD for s in sequences)
+    assert len(sequences) == 2
+    assert len(sequences[0].features) == 2
+    assert len(sequences[1].features) == 1
+    
+    assert sequences[0].origin == EventFlag.FIRST_IMAGE
+    assert sequences[0].fate == EventFlag.LAST_IMAGE
+    assert feature1 in sequences[0]
+    assert feature3 in sequences[0]
+    assert sequences[1] in sequences[0].releases
+    assert sequences[1].fate_sequences == []
+    
+    assert sequences[1].origin == EventFlag.RELEASED
+    assert sequences[1].fate == EventFlag.LAST_IMAGE
+    assert feature2 in sequences[1].features
+    assert sequences[0] in sequences[1].origin_sequences
+
+
 def test_three_way_split(basic_config):
     img = np.ones((2, 2))
     feature1 = Feature(1, (5, 10), img, img, img)
@@ -866,3 +902,149 @@ def test_min_lifetime(basic_config):
     assert featureA1.sequence.flag == SequenceFlag.TOO_SHORT
     assert featureB1.sequence.flag == SequenceFlag.GOOD
     assert featureC1.sequence.flag == SequenceFlag.GOOD
+
+
+def test_identify_all_events(basic_config):
+    img = np.ones((2, 2))
+    parent1A = Feature(1, (6, 11), img, img, img)
+    parent1B = Feature(2, (5, 10), img, img, img)
+    
+    parent2A = Feature(3, (3, 8), img, img, img)
+    parent2B = Feature(4, (4, 9), img, img, img)
+    
+    child1A = Feature(5, (4, 9), img, img, img)
+    child2A = Feature(6, (5, 10), img, img, img)
+    
+    child1B = Feature(7, (3, 8), img, img, img)
+    child2B = Feature(8, (6, 11), img, img, img)
+    
+    child2C = Feature(9, (6, 11), img, img, img)
+    grandchild1A = Feature(10, (3, 8), img, img, img)
+    grandchild2A = Feature(11, (3, 8), img, img, img)
+    
+    greatgrandchild1A = Feature(12, (3, 8), img, img, img)
+    
+    tracked_image1 = TrackedImage(time=datetime(1, 1, 1))
+    tracked_image1.add_features(parent1A, parent2A)
+    tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
+    tracked_image2.add_features(parent1B, parent2B)
+    tracked_image3 = TrackedImage(time=datetime(1, 1, 3))
+    tracked_image3.add_features(child1A, child2A)
+    tracked_image4 = TrackedImage(time=datetime(1, 1, 4))
+    tracked_image4.add_features(child1B, child2B)
+    tracked_image5 = TrackedImage(time=datetime(1, 1, 5))
+    tracked_image5.add_features(grandchild1A, child2C, grandchild2A)
+    tracked_image6 = TrackedImage(time=datetime(1, 1, 6))
+    tracked_image6.add_features(greatgrandchild1A)
+    
+    tracked_image_set = link_features.link_features(
+        [tracked_image1, tracked_image2, tracked_image3, tracked_image4,
+         tracked_image5, tracked_image6],
+        basic_config)
+    
+    events = link_features._identify_all_events(tracked_image_set.sequences)
+    
+    events_by_id = {e.id: e for e in events}
+    
+    eid = parent1B.sequence.fate_event_id
+    event = events_by_id[eid]
+    assert parent1A.sequence in event.inputs
+    assert parent2A.sequence in event.inputs
+    assert child1A.sequence in event.outputs
+    assert child2A.sequence in event.outputs
+    assert event.type == EventFlag.COMPLEX
+    assert child1A.sequence.origin_event_id == eid
+    assert child2A.sequence.origin_event_id == eid
+    assert parent1A.sequence.fate_event_id == eid
+    assert parent2A.sequence.fate_event_id == eid
+    
+    eid = grandchild2A.sequence.origin_event_id
+    event = events_by_id[eid]
+    assert child1A.sequence in event.inputs
+    assert grandchild1A.sequence in event.outputs
+    assert grandchild2A.sequence in event.outputs
+    assert event.type == EventFlag.SPLIT
+    assert grandchild1A.sequence.origin_event_id == eid
+    assert grandchild2A.sequence.origin_event_id == eid
+    assert child1A.sequence.fate_event_id == eid
+    
+    eid = greatgrandchild1A.sequence.origin_event_id
+    event = events_by_id[eid]
+    assert grandchild1A.sequence in event.inputs
+    assert grandchild2A.sequence in event.inputs
+    assert greatgrandchild1A.sequence in event.outputs
+    assert event.type == EventFlag.MERGE
+    assert greatgrandchild1A.sequence.origin_event_id == eid
+    assert grandchild1A.sequence.fate_event_id == eid
+    assert grandchild2A.sequence.fate_event_id == eid
+
+
+def test_split_merge_complex_size_ratio(basic_config):
+    small_img = np.ones((1, 1))
+    big_img = np.ones((5, 5))
+    
+    feature1 = Feature(1, (1, 6), big_img, big_img, big_img)
+    feature2 = Feature(2, (5, 6), big_img, big_img, big_img)
+    feature3 = Feature(3, (5, 10), big_img, big_img, big_img)
+    feature4 = Feature(4, (1, 10), big_img, big_img, big_img)
+    feature5 = Feature(5, (1, 6), big_img, big_img, big_img)
+    feature6 = Feature(6, (5, 6), big_img, big_img, big_img)
+    feature7 = Feature(7, (5, 10), big_img, big_img, big_img)
+    feature8 = Feature(8, (1, 10), big_img, big_img, big_img)
+    
+    absorb2 = Feature(-1, (7, 12), small_img, small_img, small_img)
+    absorb2b = Feature(-2, (8, 13), small_img, small_img, small_img)
+    release2 = Feature(-3, (1, 6), small_img, small_img, small_img)
+    absorb3 = Feature(-4, (1, 10), small_img, small_img, small_img)
+    
+    tracked_image1 = TrackedImage(time=datetime(1, 1, 1))
+    tracked_image1.add_features(feature1)
+    tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
+    tracked_image2.add_features(feature2, absorb2, absorb2b, release2)
+    tracked_image3 = TrackedImage(time=datetime(1, 1, 3))
+    tracked_image3.add_features(feature3, absorb3)
+    tracked_image4 = TrackedImage(time=datetime(1, 1, 4))
+    tracked_image4.add_features(feature4)
+    tracked_image5 = TrackedImage(time=datetime(1, 1, 5))
+    tracked_image5.add_features(feature5)
+    tracked_image6 = TrackedImage(time=datetime(1, 1, 6))
+    tracked_image6.add_features(feature6)
+    tracked_image7 = TrackedImage(time=datetime(1, 1, 7))
+    tracked_image7.add_features(feature7)
+    tracked_image8 = TrackedImage(time=datetime(1, 1, 8))
+    tracked_image8.add_features(feature8)
+    
+    basic_config['linking']['persist_if_size_ratio_below'] = 2 / 25
+    tracked_image_set = link_features.link_features(
+        [tracked_image1, tracked_image2, tracked_image3, tracked_image4,
+         tracked_image5, tracked_image6, tracked_image7, tracked_image8],
+        basic_config)
+    
+    sequences = tracked_image_set.sequences
+    assert all(s.feature_flag == Flag.GOOD for s in sequences)
+    assert len(sequences) == 5
+    
+    main_seq = feature1.sequence
+    for seq in sequences:
+        if seq is main_seq:
+            continue
+        assert len(seq.features) == 1
+
+    assert len(main_seq.features) == 8
+    assert main_seq.origin == EventFlag.FIRST_IMAGE
+    assert main_seq.fate == EventFlag.LAST_IMAGE
+    
+    assert absorb2.sequence in main_seq.absorbs
+    assert absorb2b.sequence in main_seq.absorbs
+    assert absorb3.sequence in main_seq.absorbs
+    assert release2.sequence in main_seq.releases
+    
+    for seq in (release2.sequence,):
+        assert seq.origin == EventFlag.RELEASED
+        assert seq.fate == EventFlag.NORMAL
+        assert seq.origin_sequences == [main_seq]
+    
+    for seq in (absorb2.sequence, absorb2b.sequence, absorb3.sequence):
+        assert seq.origin == EventFlag.NORMAL
+        assert seq.fate == EventFlag.ABSORBED
+        assert seq.fate_sequences == [main_seq]

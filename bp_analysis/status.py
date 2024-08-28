@@ -43,6 +43,8 @@ class EventFlag(IntEnum):
     COMPLEX = 205
     SIZE_CHANGE_PX = 206
     SIZE_CHANGE_PCT = 207
+    ABSORBED = 208
+    RELEASED = 209
     
     def __repr__(self):
         return self.name

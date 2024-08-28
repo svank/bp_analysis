@@ -55,3 +55,6 @@ min_lifetime = 5
 [temporal-smoothing]
 window_size = 7
 n_required = 4
+
+[linking]
+persist_if_size_ratio_below = 0.1

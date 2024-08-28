@@ -95,6 +95,10 @@ class FeatureSequence:
         self.fate = EventFlag.NORMAL
         self.origin_sequences: list[FeatureSequence] = []
         self.fate_sequences: list[FeatureSequence] = []
+        self.origin_event_id = None
+        self.fate_event_id = None
+        self.absorbs: list[FeatureSequence] = []
+        self.releases: list[FeatureSequence] = []
         self.feature_flag = None
         self.flag = None
     

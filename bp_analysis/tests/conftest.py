@@ -88,5 +88,8 @@ def basic_config():
         [temporal-smoothing]
         window_size = 1
         n_required = 1
+        
+        [linking]
+        persist_if_size_ratio_below = 0
     """)
     return config

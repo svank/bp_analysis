@@ -1,3 +1,4 @@
+import collections
 import datetime
 import tomllib
 
@@ -27,6 +28,7 @@ def link_features(tracked_images: list[TrackedImage],
     
     prev_frame_features = []
     feature_sequences = []
+    next_event_id = 1
     for image in tracked_images:
         for feature in image.features:
             overlaps = [pff for pff in prev_frame_features
@@ -45,7 +47,12 @@ def link_features(tracked_images: list[TrackedImage],
                 for seq in overlap_sequences:
                     seq.fate_sequences.append(sequence)
                     sequence.origin_sequences.append(seq)
-                _walk_and_mark_as_complex(sequence)
+                sequence.origin_event_id = overlap_sequences[0].fate_event_id
+                inputs, outputs = _walk_for_event_inputs_outputs(sequence)
+                for input in inputs:
+                    input.fate = EventFlag.COMPLEX
+                for output in outputs:
+                    output.origin = EventFlag.COMPLEX
             elif len(overlaps) == 1:
                 # This is a simple continuation... unless we discover this to
                 # be a split!
@@ -70,6 +77,9 @@ def link_features(tracked_images: list[TrackedImage],
                     for seq in (sequence, sibling_sequence):
                         seq.origin = EventFlag.SPLIT
                         seq.origin_sequences.append(overlap.sequence)
+                        seq.origin_event_id = next_event_id
+                    overlap.sequence.fate_event_id = next_event_id
+                    next_event_id += 1
                 elif overlap.sequence.fate == EventFlag.SPLIT:
                     # This is a multi-split!
                     sequence = FeatureSequence()
@@ -78,6 +88,7 @@ def link_features(tracked_images: list[TrackedImage],
                     sequence.origin = EventFlag.SPLIT
                     overlap.sequence.fate_sequences.append(sequence)
                     sequence.origin_sequences.append(overlap.sequence)
+                    sequence.origin_event_id = overlap.sequence.fate_event_id
                 else:
                     # This is a plain ol' continuation
                     sequence = overlaps[0].sequence
@@ -107,16 +118,25 @@ def link_features(tracked_images: list[TrackedImage],
                         sibling_sequence.add_features(sibling)
                         sibling_sequence.origin_sequences.append(seq)
                         seq.fate_sequences.append(sibling_sequence)
-                    _walk_and_mark_as_complex(sequence)
+                    inputs, outputs = _walk_for_event_inputs_outputs(sequence)
+                    for input in inputs:
+                        input.fate_event_id = next_event_id
+                        input.fate = EventFlag.COMPLEX
+                    for output in outputs:
+                        output.origin_event_id = next_event_id
+                        output.origin = EventFlag.COMPLEX
+                    next_event_id += 1
                 else:
                     # This is a plain ol' merger
-                    for f in overlaps:
-                        sequence.origin_sequences.append(f.sequence)
                     sequence.origin = EventFlag.MERGE
+                    sequence.origin_event_id = next_event_id
                     for feat in overlaps:
                         seq = feat.sequence
+                        sequence.origin_sequences.append(seq)
                         seq.fate = EventFlag.MERGE
                         seq.fate_sequences.append(sequence)
+                        seq.fate_event_id = next_event_id
+                    next_event_id += 1
         
         if image is tracked_images[0]:
             for sequence in feature_sequences:
@@ -130,12 +150,14 @@ def link_features(tracked_images: list[TrackedImage],
     
     #
     ## Stage 2: Breaking chains apart
+    ## This happens when the feature flag changes or the size changes too much
     #
     
-    i = 0
+    i = -1
     while True:
         # Doing this instead of a for loop because we'll be adding new
         # sequences to the list as we go
+        i += 1
         if i >= len(feature_sequences):
             break
         
@@ -150,12 +172,14 @@ def link_features(tracked_images: list[TrackedImage],
                 dsize = np.abs(cur_size - prev_size)
                 bad_size_px = dsize > max_size_change_px
                 bad_size_pct = dsize / prev_size * 100 > max_size_change_pct
-            if feature.flag != sequence.feature_flag or bad_size_pct or bad_size_px:
+            if (feature.flag != sequence.feature_flag or bad_size_pct
+                    or bad_size_px):
                 new_sequence = FeatureSequence()
                 new_sequence.add_features(*sequence.features[j:])
                 sequence.features = sequence.features[:j]
                 
                 new_sequence.fate = sequence.fate
+                new_sequence.fate_event_id = sequence.fate_event_id
                 new_sequence.fate_sequences = sequence.fate_sequences
                 new_sequence.origin_sequences.append(sequence)
                 if bad_size_pct:
@@ -176,13 +200,74 @@ def link_features(tracked_images: list[TrackedImage],
                 else:
                     sequence.fate = feature.flag
                 
+                sequence.fate_event_id = None
                 sequence.fate_sequences = [new_sequence]
                 feature_sequences.insert(i+1, new_sequence)
                 break
-        i += 1
     
     #
-    ## Stage 3: Filtering the sequences
+    ## Stage 3: "Heal" sequences if they split or merge with something only
+    ## very small
+    ## (seemed easier to this separately than handle several cases in Stage 1)
+    #
+    
+    req_size_ratio = get_cfg(config, 'linking', 'persist_if_size_ratio_below')
+    sequence_replacement_map = {}
+    events = _identify_all_events(feature_sequences) if req_size_ratio else []
+    for event in events:
+        for i in range(len(event.inputs)):
+            while id(event.inputs[i]) in sequence_replacement_map:
+                event.inputs[i] = sequence_replacement_map[id(event.inputs[i])]
+        for i in range(len(event.outputs)):
+            while id(event.outputs[i]) in sequence_replacement_map:
+                event.outputs[i] = sequence_replacement_map[id(event.outputs[i])]
+        
+        max_input_size = max(input[event.tstart].size for input in event.inputs)
+        max_output_size = max(output[event.tend].size
+                              for output in event.outputs)
+        
+        big_inputs = [input for input in event.inputs
+                      if input[event.tstart].size / max_input_size
+                      > req_size_ratio]
+        big_outputs = [output for output in event.outputs
+                       if output[event.tend].size / max_output_size
+                       > req_size_ratio]
+        if len(big_inputs) == 1 and len(big_outputs) == 1:
+            first_portion = big_inputs[0]
+            second_portion = big_outputs[0]
+            small_inputs = [input for input in event.inputs
+                            if input is not first_portion]
+            small_outputs = [output for output in event.outputs
+                             if output is not second_portion]
+            
+            feature_sequences.remove(second_portion)
+            first_portion.add_features(*second_portion.features)
+            first_portion.fate = second_portion.fate
+            first_portion.fate_sequences = second_portion.fate_sequences
+            first_portion.fate_event_id = second_portion.fate_event_id
+            first_portion.absorbs.extend(small_inputs)
+            first_portion.releases.extend(small_outputs)
+            
+            for second_origin in second_portion.origin_sequences:
+                if second_portion in second_origin.fate_sequences:
+                    second_origin.fate_sequences.remove(second_portion)
+                    second_origin.fate_sequences.append(first_portion)
+            for second_fate in second_portion.fate_sequences:
+                if second_portion in second_fate.origin_sequences:
+                    second_fate.origin_sequences.remove(second_portion)
+                    second_fate.origin_sequences.append(first_portion)
+            
+            for input in small_inputs:
+                input.fate_sequences = [first_portion]
+                input.fate = EventFlag.ABSORBED
+            for output in small_outputs:
+                output.origin_sequences = [first_portion]
+                output.origin = EventFlag.RELEASED
+            
+            sequence_replacement_map[id(second_portion)] = first_portion
+    
+    #
+    ## Stage 4: Filtering the sequences
     #
     
     min_lifetime = get_cfg(config, 'lifetime-filter', 'min_lifetime')
@@ -193,7 +278,7 @@ def link_features(tracked_images: list[TrackedImage],
             sequence.flag = SequenceFlag.GOOD
     
     #
-    ## Stage 4: Wrapup
+    ## Stage 5: Wrapup
     #
     
     for i, sequence in enumerate(feature_sequences):
@@ -203,24 +288,23 @@ def link_features(tracked_images: list[TrackedImage],
     return tracked_image_set
 
 
-def _walk_and_mark_as_complex(new_sequence):
-    new_sequence.origin = EventFlag.COMPLEX
-    for parent in new_sequence.origin_sequences:
-        # Each of the input features must be marked as complex
-        if parent.fate == EventFlag.COMPLEX:
-            continue
-        parent.fate = EventFlag.COMPLEX
-        for sibling_seq in parent.fate_sequences:
-            # Any other children they have also must be marked
-            if sibling_seq.origin == EventFlag.COMPLEX:
-                continue
-            sibling_seq.origin = EventFlag.COMPLEX
-            for other_parent in sibling_seq.origin_sequences:
-                # And any of their parents as well
-                other_parent.fate = EventFlag.COMPLEX
-                # But we don't need to go to p's children, as if
-                # there are any, then s should already have been
-                # marked as complex
+def _walk_for_event_inputs_outputs(output: FeatureSequence):
+    inputs = []
+    outputs = []
+    new_outputs = [output]
+    while len(new_outputs):
+        outputs_to_iterate = new_outputs
+        new_outputs = []
+        new_inputs = []
+        for output in outputs_to_iterate:
+            new_inputs.extend(output.origin_sequences)
+        new_inputs = [i for i in new_inputs if i not in inputs]
+        for input in new_inputs:
+            new_outputs.extend(input.fate_sequences)
+        new_outputs = [o for o in new_outputs if o not in outputs]
+        inputs.extend(new_inputs)
+        outputs.extend(new_outputs)
+    return inputs, outputs
 
 
 class TrackedImageSet:
@@ -265,3 +349,37 @@ class SequenceList(list):
     
     def sorted_by_length(self):
         return SequenceList(sorted(self, key=lambda s: len(s), reverse=True))
+
+
+class Event:
+    id: int
+    type: EventFlag
+    inputs: list[FeatureSequence]
+    outputs: list[FeatureSequence]
+    tstart: datetime.datetime
+    tend: datetime.datetime
+    
+    def __init__(self, id, type, inputs, outputs):
+        self.id = id
+        self.type = type
+        self.inputs = inputs
+        self.outputs = outputs
+        self.tstart = self.inputs[0].features[-1].time
+        self.tend = self.outputs[0].features[0].time
+
+
+def _identify_all_events(sequences):
+    event_to_sequences = collections.defaultdict(list)
+    for sequence in sequences:
+        if id := sequence.origin_event_id:
+            event_to_sequences[id].append(sequence)
+        if id := sequence.fate_event_id:
+            event_to_sequences[id].append(sequence)
+    events = []
+    for id, sequences in event_to_sequences.items():
+        inputs = [seq for seq in sequences if seq.fate_event_id == id]
+        outputs = [seq for seq in sequences if seq.origin_event_id == id]
+        assert all(input.fate == inputs[0].fate for input in inputs)
+        assert all(output.origin == inputs[0].fate for output in outputs)
+        events.append(Event(id, inputs[0].fate, inputs, outputs))
+    return events
