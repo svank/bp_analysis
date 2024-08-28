@@ -79,7 +79,7 @@ def link_features(tracked_images: list[TrackedImage],
                     overlap.sequence.fate_sequences.append(sequence)
                     sequence.origin_sequences.append(overlap.sequence)
                 else:
-                    # This is a plain ol' split
+                    # This is a plain ol' continuation
                     sequence = overlaps[0].sequence
                     sequence.add_features(feature)
             elif len(overlaps) >= 2:
