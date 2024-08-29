@@ -1,3 +1,5 @@
+import pytest
+
 from .. import link_features
 from ..feature import *
 from ..status import EventFlag, Flag, SequenceFlag
@@ -243,9 +245,9 @@ def test_merge(basic_config):
 
     assert parent1.sequence.origin_event_id is None
     assert parent2.sequence.origin_event_id is None
-    assert parent1.sequence.fate_event_id is not None
-    assert parent1.sequence.fate_event_id == child.sequence.origin_event_id
-    assert parent2.sequence.fate_event_id == child.sequence.origin_event_id
+    assert (None is not parent1.sequence.fate_event_id
+            == child.sequence.origin_event_id
+            == parent2.sequence.fate_event_id)
     assert child.sequence.fate_event_id is None
 
 
@@ -1136,7 +1138,8 @@ def test_identify_all_events(basic_config):
     assert grandchild2A.sequence.fate_event_id == eid
 
 
-def test_split_merge_complex_size_ratio(basic_config):
+@pytest.mark.parametrize("reverse_feature_orders", [True, False])
+def test_split_merge_complex_size_ratio(basic_config, reverse_feature_orders):
     small_img = np.ones((1, 1))
     big_img = np.ones((5, 5))
     
@@ -1147,12 +1150,26 @@ def test_split_merge_complex_size_ratio(basic_config):
     feature5 = Feature(5, (1, 6), big_img, big_img, big_img)
     feature6 = Feature(6, (5, 6), big_img, big_img, big_img)
     feature7 = Feature(7, (5, 10), big_img, big_img, big_img)
+    
     feature8 = Feature(8, (1, 10), big_img, big_img, big_img)
+    feature8.flag = Flag.EDGE
+    feature9 = Feature(9, (1, 6), big_img, big_img, big_img)
+    feature9.flag = Flag.TOO_BIG
+    feature10 = Feature(10, (5, 6), big_img, big_img, big_img)
+    feature10.flag = Flag.TOO_SMALL
     
     absorb2 = Feature(-1, (7, 12), small_img, small_img, small_img)
     absorb2b = Feature(-2, (8, 13), small_img, small_img, small_img)
     release2 = Feature(-3, (1, 6), small_img, small_img, small_img)
     absorb3 = Feature(-4, (1, 10), small_img, small_img, small_img)
+    absorb_at_discont7 = Feature(-5, (1, 10), small_img, small_img, small_img)
+    release_at_discont9 = Feature(-6, (1, 10), small_img, small_img, small_img)
+    absorb_at_discont9 = Feature(-7, (5, 6), small_img, small_img, small_img)
+    release_at_discont10 = Feature(-8, (1, 6), small_img, small_img, small_img)
+    
+    absorb_release4 = Feature(-30, (9, 14), small_img, small_img, small_img)
+    absorb_release5 = Feature(-31, (9, 14), small_img, small_img, small_img)
+    absorb_release6 = Feature(-32, (9, 14), small_img, small_img, small_img)
     
     tracked_image1 = TrackedImage(time=datetime(1, 1, 1))
     tracked_image1.add_features(feature1)
@@ -1161,40 +1178,62 @@ def test_split_merge_complex_size_ratio(basic_config):
     tracked_image3 = TrackedImage(time=datetime(1, 1, 3))
     tracked_image3.add_features(feature3, absorb3)
     tracked_image4 = TrackedImage(time=datetime(1, 1, 4))
-    tracked_image4.add_features(feature4)
+    tracked_image4.add_features(feature4, absorb_release4)
     tracked_image5 = TrackedImage(time=datetime(1, 1, 5))
-    tracked_image5.add_features(feature5)
+    tracked_image5.add_features(feature5, absorb_release5)
     tracked_image6 = TrackedImage(time=datetime(1, 1, 6))
-    tracked_image6.add_features(feature6)
+    tracked_image6.add_features(feature6, absorb_release6)
     tracked_image7 = TrackedImage(time=datetime(1, 1, 7))
-    tracked_image7.add_features(feature7)
+    tracked_image7.add_features(feature7, absorb_at_discont7)
     tracked_image8 = TrackedImage(time=datetime(1, 1, 8))
     tracked_image8.add_features(feature8)
+    tracked_image9 = TrackedImage(time=datetime(1, 1, 9))
+    tracked_image9.add_features(feature9, release_at_discont9,
+                                absorb_at_discont9)
+    tracked_image10 = TrackedImage(time=datetime(1, 1, 10))
+    tracked_image10.add_features(feature10, release_at_discont10)
+    
+    all_images = [tracked_image1, tracked_image2, tracked_image3,
+                  tracked_image4, tracked_image5, tracked_image6,
+                  tracked_image7, tracked_image8, tracked_image9,
+                  tracked_image10]
+    
+    if reverse_feature_orders:
+        for image in all_images:
+            image.features = image.features[::-1]
     
     basic_config['linking']['persist_if_size_ratio_below'] = 2 / 25
-    tracked_image_set = link_features.link_features(
-        [tracked_image1, tracked_image2, tracked_image3, tracked_image4,
-         tracked_image5, tracked_image6, tracked_image7, tracked_image8],
-        basic_config)
+    tracked_image_set = link_features.link_features(all_images, basic_config)
     
     sequences = tracked_image_set.sequences
-    assert all(s.feature_flag == Flag.GOOD for s in sequences)
-    assert len(sequences) == 5
+    assert all(feature8 in s.features or feature9 in s.features
+               or feature10 in s.features or s.feature_flag == Flag.GOOD
+               for s in sequences)
+    assert len(sequences) == 13
     
     main_seq = feature1.sequence
+    absorb_release_sequence = absorb_release4.sequence
     for seq in sequences:
-        if seq is main_seq:
+        if seq in (main_seq, absorb_release_sequence):
             continue
         assert len(seq.features) == 1
 
-    assert len(main_seq.features) == 8
+    assert len(main_seq.features) == 7
     assert main_seq.origin == EventFlag.FIRST_IMAGE
-    assert main_seq.fate == EventFlag.LAST_IMAGE
+    
+    assert len(absorb_release_sequence) == 3
+    assert absorb_release_sequence.origin == EventFlag.RELEASED
+    assert absorb_release_sequence.fate == EventFlag.ABSORBED
+    assert absorb_release_sequence.origin_sequences == [main_seq]
+    assert absorb_release_sequence.fate_sequences == [main_seq]
     
     assert absorb2.sequence in main_seq.absorbs
     assert absorb2b.sequence in main_seq.absorbs
     assert absorb3.sequence in main_seq.absorbs
     assert release2.sequence in main_seq.releases
+    assert absorb_release_sequence in main_seq.absorbs
+    assert absorb_release_sequence in main_seq.releases
+    assert feature8.sequence in main_seq.fate_sequences
     
     for seq in (release2.sequence,):
         assert seq.origin == EventFlag.RELEASED
@@ -1205,3 +1244,40 @@ def test_split_merge_complex_size_ratio(basic_config):
         assert seq.origin == EventFlag.NORMAL
         assert seq.fate == EventFlag.ABSORBED
         assert seq.fate_sequences == [main_seq]
+    
+    assert absorb_at_discont7.sequence.fate == EventFlag.MERGE
+    assert main_seq.fate == EventFlag.MERGE
+    assert feature8.sequence.origin == EventFlag.MERGE
+    assert absorb_at_discont7.sequence.fate_sequences == [feature8.sequence]
+    assert main_seq.fate_sequences == [feature8.sequence]
+    assert main_seq in feature8.sequence.origin_sequences
+    assert absorb_at_discont7.sequence in feature8.sequence.origin_sequences
+    assert (None is not main_seq.fate_event_id
+            == feature8.sequence.origin_event_id
+            == absorb_at_discont7.sequence.fate_event_id)
+    
+    assert release_at_discont9.sequence.origin == EventFlag.SPLIT
+    assert feature9.sequence.origin == EventFlag.SPLIT
+    assert feature8.sequence.fate == EventFlag.SPLIT
+    assert release_at_discont9.sequence.origin_sequences == [feature8.sequence]
+    assert feature9.sequence.origin_sequences == [feature8.sequence]
+    assert feature9.sequence in feature8.sequence.fate_sequences
+    assert release_at_discont9.sequence in feature8.sequence.fate_sequences
+    assert (None is not feature8.sequence.fate_event_id
+            == feature9.sequence.origin_event_id
+            == release_at_discont9.sequence.origin_event_id)
+    
+    assert absorb_at_discont9.sequence.fate == EventFlag.COMPLEX
+    assert feature9.sequence.fate == EventFlag.COMPLEX
+    assert release_at_discont10.sequence.origin == EventFlag.COMPLEX
+    assert feature10.sequence.origin == EventFlag.COMPLEX
+    assert absorb_at_discont9.sequence in feature10.sequence.origin_sequences
+    assert feature9.sequence in feature10.sequence.origin_sequences
+    assert release_at_discont10.sequence.origin_sequences == [feature9.sequence]
+    assert feature10.sequence in feature9.sequence.fate_sequences
+    assert release_at_discont10.sequence in feature9.sequence.fate_sequences
+    assert absorb_at_discont9.sequence.fate_sequences == [feature10.sequence]
+    assert (None is not feature9.sequence.fate_event_id
+            == absorb_at_discont9.sequence.fate_event_id
+            == feature10.sequence.origin_event_id
+            == release_at_discont10.sequence.origin_event_id)

@@ -252,6 +252,8 @@ def link_features(tracked_images: list[TrackedImage],
         if len(big_inputs) == 1 and len(big_outputs) == 1:
             first_portion = big_inputs[0]
             second_portion = big_outputs[0]
+            if first_portion.feature_flag != second_portion.feature_flag:
+                continue
             small_inputs = [input for input in event.inputs
                             if input is not first_portion]
             small_outputs = [output for output in event.outputs
@@ -275,10 +277,8 @@ def link_features(tracked_images: list[TrackedImage],
                     second_fate.origin_sequences.append(first_portion)
             
             for input in small_inputs:
-                input.fate_sequences = [first_portion]
                 input.fate = EventFlag.ABSORBED
             for output in small_outputs:
-                output.origin_sequences = [first_portion]
                 output.origin = EventFlag.RELEASED
             
             sequence_replacement_map[id(second_portion)] = first_portion
@@ -386,12 +386,12 @@ class Event:
 
 
 def _identify_all_events(sequences):
-    event_to_sequences = collections.defaultdict(list)
+    event_to_sequences = collections.defaultdict(set)
     for sequence in sequences:
         if id := sequence.origin_event_id:
-            event_to_sequences[id].append(sequence)
+            event_to_sequences[id].add(sequence)
         if id := sequence.fate_event_id:
-            event_to_sequences[id].append(sequence)
+            event_to_sequences[id].add(sequence)
     events = []
     for id, sequences in event_to_sequences.items():
         inputs = [seq for seq in sequences if seq.fate_event_id == id]
