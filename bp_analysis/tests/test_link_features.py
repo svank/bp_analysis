@@ -75,14 +75,14 @@ def test_non_overlapping(basic_config):
 
 def test_split(basic_config):
     img = np.ones((2, 2))
-    feature1 = Feature(1, (5, 10), img, img, img)
-    feature2 = Feature(2, (6, 11), img, img, img)
-    feature3 = Feature(3, (4, 9), img, img, img)
+    parent = Feature(1, (5, 10), img, img, img)
+    child1 = Feature(2, (6, 11), img, img, img)
+    child2 = Feature(3, (4, 9), img, img, img)
     
     tracked_image1 = TrackedImage(time=datetime(1, 1, 1))
-    tracked_image1.add_features(feature1)
+    tracked_image1.add_features(parent)
     tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
-    tracked_image2.add_features(feature2, feature3)
+    tracked_image2.add_features(child1, child2)
     
     tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2],
@@ -97,11 +97,11 @@ def test_split(basic_config):
     
     assert sequences[0].origin == EventFlag.FIRST_IMAGE
     assert sequences[0].fate == EventFlag.SPLIT
-    assert feature1 in sequences[0]
+    assert parent in sequences[0]
     assert sequences[1] in sequences[0].fate_sequences
     assert sequences[2] in sequences[0].fate_sequences
     
-    for seq, feat in zip(sequences[1:], [feature2, feature3]):
+    for seq, feat in zip(sequences[1:], [child1, child2]):
         assert seq.origin == EventFlag.SPLIT
         assert seq.fate == EventFlag.LAST_IMAGE
         assert feat in seq.features
@@ -109,19 +109,25 @@ def test_split(basic_config):
     
     for i, seq in enumerate(sequences):
         assert seq.id == i + 1
+    
+    assert parent.sequence.origin_event_id is None
+    assert parent.sequence.fate_event_id is not None
+    for child in (child1, child2):
+        assert parent.sequence.fate_event_id == child.sequence.origin_event_id
+        assert child.sequence.fate_event_id is None
 
 
 def test_split_size_ratio(basic_config):
     small_img = np.ones((1, 1))
     big_img = np.ones((5, 5))
-    feature1 = Feature(1, (5, 10), big_img, big_img, big_img)
-    feature2 = Feature(2, (6, 11), small_img, small_img, small_img)
-    feature3 = Feature(3, (4, 9), big_img, big_img, big_img)
+    parent = Feature(1, (5, 10), big_img, big_img, big_img)
+    small_child = Feature(2, (6, 11), small_img, small_img, small_img)
+    big_child = Feature(3, (4, 9), big_img, big_img, big_img)
     
     tracked_image1 = TrackedImage(time=datetime(1, 1, 1))
-    tracked_image1.add_features(feature1)
+    tracked_image1.add_features(parent)
     tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
-    tracked_image2.add_features(feature2, feature3)
+    tracked_image2.add_features(small_child, big_child)
     
     basic_config['linking']['persist_if_size_ratio_below'] = 2 / 25
     tracked_image_set = link_features.link_features(
@@ -136,28 +142,32 @@ def test_split_size_ratio(basic_config):
     
     assert sequences[0].origin == EventFlag.FIRST_IMAGE
     assert sequences[0].fate == EventFlag.LAST_IMAGE
-    assert feature1 in sequences[0]
-    assert feature3 in sequences[0]
+    assert parent in sequences[0]
+    assert big_child in sequences[0]
     assert sequences[1] in sequences[0].releases
     assert sequences[1].fate_sequences == []
     
     assert sequences[1].origin == EventFlag.RELEASED
     assert sequences[1].fate == EventFlag.LAST_IMAGE
-    assert feature2 in sequences[1].features
+    assert small_child in sequences[1].features
     assert sequences[0] in sequences[1].origin_sequences
+    
+    assert parent.sequence.origin_event_id is None
+    assert parent.sequence.fate_event_id is None
+    assert small_child.sequence.origin_event_id is not None
 
 
 def test_three_way_split(basic_config):
     img = np.ones((2, 2))
-    feature1 = Feature(1, (5, 10), img, img, img)
-    feature2 = Feature(2, (6, 11), img, img, img)
-    feature3 = Feature(3, (4, 9), img, img, img)
-    feature4 = Feature(4, (6, 9), img, img, img)
+    parent = Feature(1, (5, 10), img, img, img)
+    child1 = Feature(2, (6, 11), img, img, img)
+    child2 = Feature(3, (4, 9), img, img, img)
+    child3 = Feature(4, (6, 9), img, img, img)
     
     tracked_image1 = TrackedImage(time=datetime(1, 1, 1))
-    tracked_image1.add_features(feature1)
+    tracked_image1.add_features(parent)
     tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
-    tracked_image2.add_features(feature2, feature3, feature4)
+    tracked_image2.add_features(child1, child2, child3)
     
     tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2],
@@ -173,12 +183,12 @@ def test_three_way_split(basic_config):
     
     assert sequences[0].origin == EventFlag.FIRST_IMAGE
     assert sequences[0].fate == EventFlag.SPLIT
-    assert feature1 in sequences[0]
+    assert parent in sequences[0]
     assert sequences[1] in sequences[0].fate_sequences
     assert sequences[2] in sequences[0].fate_sequences
     assert sequences[3] in sequences[0].fate_sequences
     
-    for seq, feat in zip(sequences[1:], [feature2, feature3, feature4]):
+    for seq, feat in zip(sequences[1:], [child1, child2, child3]):
         assert seq.origin == EventFlag.SPLIT
         assert seq.fate == EventFlag.LAST_IMAGE
         assert feat in seq.features
@@ -187,17 +197,23 @@ def test_three_way_split(basic_config):
     for i, seq in enumerate(sequences):
         assert seq.id == i + 1
 
+    assert parent.sequence.origin_event_id is None
+    assert parent.sequence.fate_event_id is not None
+    for child in (child1, child2, child3):
+        assert parent.sequence.fate_event_id == child.sequence.origin_event_id
+        assert child.sequence.fate_event_id is None
+
 
 def test_merge(basic_config):
     img = np.ones((2, 2))
-    feature1 = Feature(1, (5, 10), img, img, img)
-    feature2 = Feature(2, (6, 11), img, img, img)
-    feature3 = Feature(3, (4, 9), img, img, img)
+    child = Feature(1, (5, 10), img, img, img)
+    parent1 = Feature(2, (6, 11), img, img, img)
+    parent2 = Feature(3, (4, 9), img, img, img)
     
     tracked_image1 = TrackedImage(time=datetime(1, 1, 1))
-    tracked_image1.add_features(feature2, feature3)
+    tracked_image1.add_features(parent1, parent2)
     tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
-    tracked_image2.add_features(feature1)
+    tracked_image2.add_features(child)
     
     tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2],
@@ -210,7 +226,7 @@ def test_merge(basic_config):
     assert len(sequences[1].features) == 1
     assert len(sequences[2].features) == 1
     
-    for seq, feat in zip(sequences[:2], [feature2, feature3]):
+    for seq, feat in zip(sequences[:2], [parent1, parent2]):
         assert seq.origin == EventFlag.FIRST_IMAGE
         assert seq.fate == EventFlag.MERGE
         assert feat in seq.features
@@ -220,23 +236,30 @@ def test_merge(basic_config):
     assert sequences[2].fate == EventFlag.LAST_IMAGE
     assert sequences[0] in sequences[2].origin_sequences
     assert sequences[1] in sequences[2].origin_sequences
-    assert feature1 in sequences[2]
+    assert child in sequences[2]
     
     for i, seq in enumerate(sequences):
         assert seq.id == i + 1
 
+    assert parent1.sequence.origin_event_id is None
+    assert parent2.sequence.origin_event_id is None
+    assert parent1.sequence.fate_event_id is not None
+    assert parent1.sequence.fate_event_id == child.sequence.origin_event_id
+    assert parent2.sequence.fate_event_id == child.sequence.origin_event_id
+    assert child.sequence.fate_event_id is None
+
 
 def test_three_way_merge(basic_config):
     img = np.ones((2, 2))
-    feature1 = Feature(1, (5, 10), img, img, img)
-    feature2 = Feature(2, (6, 11), img, img, img)
-    feature3 = Feature(3, (4, 9), img, img, img)
-    feature4 = Feature(4, (6, 9), img, img, img)
+    child = Feature(1, (5, 10), img, img, img)
+    parent1 = Feature(2, (6, 11), img, img, img)
+    parent2 = Feature(3, (4, 9), img, img, img)
+    parent3 = Feature(4, (6, 9), img, img, img)
     
     tracked_image1 = TrackedImage(time=datetime(1, 1, 1))
-    tracked_image1.add_features(feature2, feature3, feature4)
+    tracked_image1.add_features(parent1, parent2, parent3)
     tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
-    tracked_image2.add_features(feature1)
+    tracked_image2.add_features(child)
     
     tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2],
@@ -250,7 +273,7 @@ def test_three_way_merge(basic_config):
     assert len(sequences[2].features) == 1
     assert len(sequences[3].features) == 1
     
-    for seq, feat in zip(sequences[:2], [feature2, feature3, feature4]):
+    for seq, feat in zip(sequences[:2], [parent1, parent2, parent3]):
         assert seq.origin == EventFlag.FIRST_IMAGE
         assert seq.fate == EventFlag.MERGE
         assert feat in seq.features
@@ -261,10 +284,16 @@ def test_three_way_merge(basic_config):
     assert sequences[0] in sequences[3].origin_sequences
     assert sequences[1] in sequences[3].origin_sequences
     assert sequences[2] in sequences[3].origin_sequences
-    assert feature1 in sequences[3]
+    assert child in sequences[3]
     
     for i, seq in enumerate(sequences):
         assert seq.id == i + 1
+     
+    assert child.sequence.fate_event_id is None
+    assert child.sequence.origin_event_id is not None
+    for parent in (parent1, parent2, parent3):
+        assert parent.sequence.origin_event_id is None
+        assert parent.sequence.fate_event_id == child.sequence.origin_event_id
 
 
 def test_split_and_simple_becomes_complex(basic_config):
@@ -328,6 +357,14 @@ def test_split_and_simple_becomes_complex(basic_config):
     for i, seq in enumerate(sequences):
         assert seq.id == i + 1
 
+    assert parent1.sequence.origin_event_id is None
+    assert parent2.sequence.origin_event_id is None
+    assert parent1.sequence.fate_event_id is not None
+    assert parent1.sequence.fate_event_id == parent2.sequence.fate_event_id
+    for child in (split1, split2, simple1, simple2, merge):
+        assert child.sequence.origin_event_id == parent1.sequence.fate_event_id
+        assert child.sequence.fate_event_id is None
+
 
 def test_split_becomes_complex(basic_config):
     img = np.ones((2, 2))
@@ -378,6 +415,14 @@ def test_split_becomes_complex(basic_config):
     
     for i, seq in enumerate(sequences):
         assert seq.id == i + 1
+    
+    assert parent1.sequence.origin_event_id is None
+    assert parent2.sequence.origin_event_id is None
+    assert parent1.sequence.fate_event_id is not None
+    assert parent1.sequence.fate_event_id == parent2.sequence.fate_event_id
+    for child in (split1, split2, merge):
+        assert child.sequence.origin_event_id == parent1.sequence.fate_event_id
+        assert child.sequence.fate_event_id is None
 
 
 def test_simple_becomes_complex(basic_config):
@@ -437,6 +482,14 @@ def test_simple_becomes_complex(basic_config):
     for i, seq in enumerate(sequences):
         assert seq.id == i + 1
 
+    assert parent1.sequence.origin_event_id is None
+    assert parent2.sequence.origin_event_id is None
+    assert parent1.sequence.fate_event_id is not None
+    assert parent1.sequence.fate_event_id == parent2.sequence.fate_event_id
+    for child in (simple1, simple2, merge, simple3):
+        assert child.sequence.origin_event_id == parent1.sequence.fate_event_id
+        assert child.sequence.fate_event_id is None
+
 
 def test_merge_becomes_complex(basic_config):
     img = np.ones((2, 2))
@@ -470,6 +523,14 @@ def test_merge_becomes_complex(basic_config):
         assert feature.sequence.origin == EventFlag.COMPLEX
         assert feature.sequence.fate == EventFlag.LAST_IMAGE
         assert feature.sequence.origin_sequences == sequences[:2]
+    
+    for parent in (parent1, parent2):
+        assert parent.sequence.origin_event_id is None
+        assert parent.sequence.fate_event_id is not None
+    assert parent1.sequence.fate_event_id == parent2.sequence.fate_event_id
+    for child in (child1, child2):
+        assert child.sequence.origin_event_id == parent1.sequence.fate_event_id
+        assert child.sequence.fate_event_id is None
 
 
 def test_merge_becomes_complex_from_single_overlap(basic_config):
@@ -508,6 +569,14 @@ def test_merge_becomes_complex_from_single_overlap(basic_config):
         assert feature.sequence.fate == EventFlag.LAST_IMAGE
     assert child1.sequence.origin_sequences == sequences[:2]
     assert child2.sequence.origin_sequences == sequences[1:2]
+    
+    for parent in (parent1, parent2):
+        assert parent.sequence.origin_event_id is None
+        assert parent.sequence.fate_event_id is not None
+    assert parent1.sequence.fate_event_id == parent2.sequence.fate_event_id
+    for child in (child1, child2):
+        assert child.sequence.origin_event_id == parent1.sequence.fate_event_id
+        assert child.sequence.fate_event_id is None
 
 
 def test_sequence_break_on_flag_change_simple_sequence(basic_config):
@@ -562,6 +631,10 @@ def test_sequence_break_on_flag_change_simple_sequence(basic_config):
     assert sequences[2].origin == sequences[1].feature_flag
     
     assert sequences[2].fate == EventFlag.LAST_IMAGE
+    
+    for sequence in sequences:
+        assert sequence.origin_event_id is None
+        assert sequence.fate_event_id is None
 
 
 def test_sequence_break_on_flag_change_merge(basic_config):
@@ -636,6 +709,17 @@ def test_sequence_break_on_flag_change_merge(basic_config):
             assert sequence.fate == EventFlag.LAST_IMAGE
         else:
             raise ValueError("Unexpected sequence")
+    
+    for loner in (parent1A, parent2A, childC):
+        assert loner.sequence.origin_event_id is None
+        assert loner.sequence.fate_event_id is None
+    
+    for parent in (parent1B, parent2B):
+        assert parent.sequence.origin_event_id is None
+    assert parent1B.sequence.fate_event_id == parent2B.sequence.fate_event_id
+    
+    assert childA.sequence.fate_event_id is None
+    assert childA.sequence.origin_event_id == parent2B.sequence.fate_event_id
 
 
 def test_sequence_break_on_flag_change_split(basic_config):
@@ -649,13 +733,13 @@ def test_sequence_break_on_flag_change_split(basic_config):
     child2A = Feature(4, (6, 11), img, img, img)
     child2A.flag = Flag.TOO_SMALL
     
-    child1B = Feature(3, (4, 9), img, img, img)
-    child2B = Feature(4, (6, 11), img, img, img)
+    child1B = Feature(5, (4, 9), img, img, img)
+    child2B = Feature(6, (6, 11), img, img, img)
     child2B.flag = Flag.TOO_SMALL
     
-    child1C = Feature(3, (4, 9), img, img, img)
+    child1C = Feature(7, (4, 9), img, img, img)
     child1C.flag = Flag.TOO_BIG
-    child2C = Feature(4, (6, 11), img, img, img)
+    child2C = Feature(8, (6, 11), img, img, img)
     
     tracked_image1 = TrackedImage(time=datetime(1, 1, 1))
     tracked_image1.add_features(parentA)
@@ -710,6 +794,17 @@ def test_sequence_break_on_flag_change_split(basic_config):
             assert sequence.fate == EventFlag.LAST_IMAGE
         else:
             raise ValueError("Unexpected sequence")
+    
+    for loner in (parentA, child2C, child1C):
+        assert loner.sequence.origin_event_id is None
+        assert loner.sequence.fate_event_id is None
+    
+    assert parentB.sequence.origin_event_id is None
+    assert parentB.sequence.fate_event_id is not None
+    
+    for child in (child1A, child2A, child2B):
+        assert child.sequence.fate_event_id is None
+        assert child.sequence.origin_event_id == parentB.sequence.fate_event_id
 
 
 def test_sequence_break_on_flag_change_complex(basic_config):
@@ -725,15 +820,14 @@ def test_sequence_break_on_flag_change_complex(basic_config):
     parent2B.flag = Flag.GOOD
     
     child1A = Feature(5, (4, 9), img, img, img)
-    child2A = Feature(6, (5, 10), img, img, img)
-    child2A.flag = Flag.TOO_SMALL
-    
     child1B = Feature(7, (3, 8), img, img, img)
-    child2B = Feature(8, (6, 11), img, img, img)
-    child2B.flag = Flag.TOO_SMALL
-    
     child1C = Feature(9, (3, 8), img, img, img)
     child1C.flag = Flag.TOO_BIG
+    
+    child2A = Feature(6, (5, 10), img, img, img)
+    child2A.flag = Flag.TOO_SMALL
+    child2B = Feature(8, (6, 11), img, img, img)
+    child2B.flag = Flag.TOO_SMALL
     child2C = Feature(10, (6, 11), img, img, img)
     
     tracked_image1 = TrackedImage(time=datetime(1, 1, 1))
@@ -802,6 +896,19 @@ def test_sequence_break_on_flag_change_complex(basic_config):
             assert sequence.fate == EventFlag.LAST_IMAGE
         else:
             raise ValueError("Unexpected sequence")
+    
+    for loner in (parent1A, parent2A, child1C, child2C):
+        assert loner.sequence.origin_event_id is None
+        assert loner.sequence.fate_event_id is None
+    
+    for parent in (parent1B, parent2B):
+        assert parent.sequence.origin_event_id is None
+        assert parent.sequence.fate_event_id is not None
+    assert parent1B.sequence.fate_event_id == parent2B.sequence.fate_event_id
+    
+    for child in (child1A, child1B, child2A, child2B):
+        assert child.sequence.fate_event_id is None
+        assert child.sequence.origin_event_id == parent1B.sequence.fate_event_id
 
 
 def test_sequence_break_on_size_change_pct(basic_config):
@@ -857,6 +964,10 @@ def test_sequence_break_on_size_change_pct(basic_config):
     assert sequences[2].origin == EventFlag.SIZE_CHANGE_PCT
     
     assert sequences[2].fate == EventFlag.LAST_IMAGE
+    
+    for sequence in sequences:
+        assert sequence.origin_event_id is None
+        assert sequence.fate_event_id is None
 
 
 def test_sequence_break_on_size_change_px(basic_config):
@@ -911,6 +1022,10 @@ def test_sequence_break_on_size_change_px(basic_config):
     assert sequences[2].origin == EventFlag.SIZE_CHANGE_PX
     
     assert sequences[2].fate == EventFlag.LAST_IMAGE
+    
+    for sequence in sequences:
+        assert sequence.origin_event_id is None
+        assert sequence.fate_event_id is None
 
 
 def test_min_lifetime(basic_config):
@@ -940,6 +1055,10 @@ def test_min_lifetime(basic_config):
     assert featureA1.sequence.flag == SequenceFlag.TOO_SHORT
     assert featureB1.sequence.flag == SequenceFlag.GOOD
     assert featureC1.sequence.flag == SequenceFlag.GOOD
+    
+    for sequence in tracked_image_set.sequences:
+        assert sequence.origin_event_id is None
+        assert sequence.fate_event_id is None
 
 
 def test_identify_all_events(basic_config):

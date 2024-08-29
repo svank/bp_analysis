@@ -99,7 +99,7 @@ def link_features(tracked_images: list[TrackedImage],
                     seq = overlap.sequence
                     seq.fate_sequences.append(sequence)
                     sequence.origin_sequences.append(seq)
-                    sequence.origin_event_id = seq.origin_event_id
+                    sequence.origin_event_id = seq.fate_event_id
                     
                     inputs, outputs = _walk_for_event_inputs_outputs(sequence)
                     for input in inputs:
