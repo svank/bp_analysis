@@ -75,7 +75,8 @@ def test_non_overlapping(basic_config):
         assert seq.id == i + 1
 
 
-def test_split(basic_config):
+@pytest.mark.parametrize("reverse_feature_orders", [True, False])
+def test_split(basic_config, reverse_feature_orders):
     img = np.ones((2, 2))
     parent = Feature(1, (5, 10), img, img, img)
     child1 = Feature(2, (6, 11), img, img, img)
@@ -85,6 +86,9 @@ def test_split(basic_config):
     tracked_image1.add_features(parent)
     tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
     tracked_image2.add_features(child1, child2)
+    
+    if reverse_feature_orders:
+        tracked_image2.features = tracked_image2.features[::-1]
     
     tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2],
@@ -106,7 +110,8 @@ def test_split(basic_config):
     for seq, feat in zip(sequences[1:], [child1, child2]):
         assert seq.origin == EventFlag.SPLIT
         assert seq.fate == EventFlag.LAST_IMAGE
-        assert feat in seq.features
+        if not reverse_feature_orders:
+            assert feat in seq.features
         assert sequences[0] in seq.origin_sequences
     
     for i, seq in enumerate(sequences):
@@ -119,7 +124,8 @@ def test_split(basic_config):
         assert child.sequence.fate_event_id is None
 
 
-def test_split_size_ratio(basic_config):
+@pytest.mark.parametrize("reverse_feature_orders", [True, False])
+def test_split_size_ratio(basic_config, reverse_feature_orders):
     small_img = np.ones((1, 1))
     big_img = np.ones((5, 5))
     parent = Feature(1, (5, 10), big_img, big_img, big_img)
@@ -130,6 +136,9 @@ def test_split_size_ratio(basic_config):
     tracked_image1.add_features(parent)
     tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
     tracked_image2.add_features(small_child, big_child)
+
+    if reverse_feature_orders:
+        tracked_image2.features = tracked_image2.features[::-1]
     
     basic_config['linking']['persist_if_size_ratio_below'] = 2 / 25
     tracked_image_set = link_features.link_features(
@@ -159,7 +168,8 @@ def test_split_size_ratio(basic_config):
     assert small_child.sequence.origin_event_id is not None
 
 
-def test_three_way_split(basic_config):
+@pytest.mark.parametrize("reverse_feature_orders", [True, False])
+def test_three_way_split(basic_config, reverse_feature_orders):
     img = np.ones((2, 2))
     parent = Feature(1, (5, 10), img, img, img)
     child1 = Feature(2, (6, 11), img, img, img)
@@ -170,6 +180,9 @@ def test_three_way_split(basic_config):
     tracked_image1.add_features(parent)
     tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
     tracked_image2.add_features(child1, child2, child3)
+    
+    if reverse_feature_orders:
+        tracked_image2.features = tracked_image2.features[::-1]
     
     tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2],
@@ -193,7 +206,8 @@ def test_three_way_split(basic_config):
     for seq, feat in zip(sequences[1:], [child1, child2, child3]):
         assert seq.origin == EventFlag.SPLIT
         assert seq.fate == EventFlag.LAST_IMAGE
-        assert feat in seq.features
+        if not reverse_feature_orders:
+            assert feat in seq.features
         assert sequences[0] in seq.origin_sequences
     
     for i, seq in enumerate(sequences):
@@ -206,7 +220,8 @@ def test_three_way_split(basic_config):
         assert child.sequence.fate_event_id is None
 
 
-def test_merge(basic_config):
+@pytest.mark.parametrize("reverse_feature_orders", [True, False])
+def test_merge(basic_config, reverse_feature_orders):
     img = np.ones((2, 2))
     child = Feature(1, (5, 10), img, img, img)
     parent1 = Feature(2, (6, 11), img, img, img)
@@ -216,6 +231,9 @@ def test_merge(basic_config):
     tracked_image1.add_features(parent1, parent2)
     tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
     tracked_image2.add_features(child)
+
+    if reverse_feature_orders:
+        tracked_image1.features = tracked_image1.features[::-1]
     
     tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2],
@@ -231,7 +249,8 @@ def test_merge(basic_config):
     for seq, feat in zip(sequences[:2], [parent1, parent2]):
         assert seq.origin == EventFlag.FIRST_IMAGE
         assert seq.fate == EventFlag.MERGE
-        assert feat in seq.features
+        if not reverse_feature_orders:
+            assert feat in seq.features
         assert sequences[2] in seq.fate_sequences
     
     assert sequences[2].origin == EventFlag.MERGE
@@ -251,7 +270,8 @@ def test_merge(basic_config):
     assert child.sequence.fate_event_id is None
 
 
-def test_three_way_merge(basic_config):
+@pytest.mark.parametrize("reverse_feature_orders", [True, False])
+def test_three_way_merge(basic_config, reverse_feature_orders):
     img = np.ones((2, 2))
     child = Feature(1, (5, 10), img, img, img)
     parent1 = Feature(2, (6, 11), img, img, img)
@@ -262,6 +282,9 @@ def test_three_way_merge(basic_config):
     tracked_image1.add_features(parent1, parent2, parent3)
     tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
     tracked_image2.add_features(child)
+    
+    if reverse_feature_orders:
+        tracked_image1.features = tracked_image1.features[::-1]
     
     tracked_image_set = link_features.link_features(
         [tracked_image1, tracked_image2],
@@ -278,7 +301,8 @@ def test_three_way_merge(basic_config):
     for seq, feat in zip(sequences[:2], [parent1, parent2, parent3]):
         assert seq.origin == EventFlag.FIRST_IMAGE
         assert seq.fate == EventFlag.MERGE
-        assert feat in seq.features
+        if not reverse_feature_orders:
+            assert feat in seq.features
         assert sequences[3] in seq.fate_sequences
     
     assert sequences[3].origin == EventFlag.MERGE
@@ -298,7 +322,8 @@ def test_three_way_merge(basic_config):
         assert parent.sequence.fate_event_id == child.sequence.origin_event_id
 
 
-def test_split_and_simple_becomes_complex(basic_config):
+@pytest.mark.parametrize("reverse_feature_orders", [True, False])
+def test_split_and_simple_becomes_complex(basic_config, reverse_feature_orders):
     img = np.ones((2, 2))
     # Parent
     parent1 = Feature(1, (5, 10), img, img, img)
@@ -313,16 +338,20 @@ def test_split_and_simple_becomes_complex(basic_config):
     # This one is a merge from both parents
     merge = Feature(5, (4, 9), img, img, img)
     # This one is another "simple" descendant of the second parent
-    simple2 = Feature(6, (2, 9), img, img, img)
+    simple2 = Feature(7, (2, 9), img, img, img)
     
     tracked_image1 = TrackedImage(time=datetime(1, 1, 1))
     tracked_image1.add_features(parent1, parent2)
     tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
     tracked_image2.add_features(split1, split2, simple1, merge, simple2)
     
-    tracked_image_set = link_features.link_features(
-        [tracked_image1, tracked_image2],
-        basic_config)
+    all_images = [tracked_image1, tracked_image2]
+
+    if reverse_feature_orders:
+        for image in all_images:
+            image.features = image.features[::-1]
+    
+    tracked_image_set = link_features.link_features(all_images, basic_config)
     
     sequences = tracked_image_set.sequences
     assert all(s.feature_flag == Flag.GOOD for s in sequences)
@@ -333,7 +362,8 @@ def test_split_and_simple_becomes_complex(basic_config):
     for sequence, feature in zip(sequences[:2], [parent1, parent2]):
         assert sequence.origin == EventFlag.FIRST_IMAGE
         assert sequence.fate == EventFlag.COMPLEX
-        assert feature in sequence
+        if not reverse_feature_orders:
+            assert feature in sequence
     
     assert split1.sequence in parent1.sequence.fate_sequences
     assert split2.sequence in parent1.sequence.fate_sequences
@@ -343,10 +373,10 @@ def test_split_and_simple_becomes_complex(basic_config):
     assert simple1.sequence in parent2.sequence.fate_sequences
     assert simple2.sequence in parent2.sequence.fate_sequences
     
-    for seq, feat in zip(sequences[2:], [split1, split2, merge]):
+    for feat in (split1, split2, merge):
+        seq = feat.sequence
         assert seq.origin == EventFlag.COMPLEX
         assert seq.fate == EventFlag.LAST_IMAGE
-        assert feat in seq
         assert parent1.sequence in seq.origin_sequences
     
     assert parent2.sequence in merge.sequence.origin_sequences
@@ -368,7 +398,8 @@ def test_split_and_simple_becomes_complex(basic_config):
         assert child.sequence.fate_event_id is None
 
 
-def test_split_becomes_complex(basic_config):
+@pytest.mark.parametrize("reverse_feature_orders", [True, False])
+def test_split_becomes_complex(basic_config, reverse_feature_orders):
     img = np.ones((2, 2))
     # Parent
     parent1 = Feature(1, (5, 10), img, img, img)
@@ -386,9 +417,13 @@ def test_split_becomes_complex(basic_config):
     tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
     tracked_image2.add_features(split1, split2, merge)
     
-    tracked_image_set = link_features.link_features(
-        [tracked_image1, tracked_image2],
-        basic_config)
+    all_images = [tracked_image1, tracked_image2]
+    
+    if reverse_feature_orders:
+        for image in all_images:
+            image.features = image.features[::-1]
+    
+    tracked_image_set = link_features.link_features(all_images, basic_config)
     
     sequences = tracked_image_set.sequences
     assert all(s.feature_flag == Flag.GOOD for s in sequences)
@@ -399,7 +434,8 @@ def test_split_becomes_complex(basic_config):
     for sequence, feature in zip(sequences[:2], [parent1, parent2]):
         assert sequence.origin == EventFlag.FIRST_IMAGE
         assert sequence.fate == EventFlag.COMPLEX
-        assert feature in sequence
+        if not reverse_feature_orders:
+            assert feature in sequence
     
     assert split1.sequence in parent1.sequence.fate_sequences
     assert split2.sequence in parent1.sequence.fate_sequences
@@ -410,7 +446,8 @@ def test_split_becomes_complex(basic_config):
     for seq, feat in zip(sequences[2:], [split1, split2, merge]):
         assert seq.origin == EventFlag.COMPLEX
         assert seq.fate == EventFlag.LAST_IMAGE
-        assert feat in seq
+        if not reverse_feature_orders:
+            assert feat in seq
         assert parent1.sequence in seq.origin_sequences
     
     assert parent2.sequence in merge.sequence.origin_sequences
@@ -427,7 +464,8 @@ def test_split_becomes_complex(basic_config):
         assert child.sequence.fate_event_id is None
 
 
-def test_simple_becomes_complex(basic_config):
+@pytest.mark.parametrize("reverse_feature_orders", [True, False])
+def test_simple_becomes_complex(basic_config, reverse_feature_orders):
     img = np.ones((2, 2))
     # Parent
     parent1 = Feature(1, (5, 10), img, img, img)
@@ -448,9 +486,13 @@ def test_simple_becomes_complex(basic_config):
     tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
     tracked_image2.add_features(simple1, simple2, merge, simple3)
     
-    tracked_image_set = link_features.link_features(
-        [tracked_image1, tracked_image2],
-        basic_config)
+    all_images = [tracked_image1, tracked_image2]
+    
+    if reverse_feature_orders:
+        for image in all_images:
+            image.features = image.features[::-1]
+    
+    tracked_image_set = link_features.link_features(all_images, basic_config)
     
     sequences = tracked_image_set.sequences
     assert all(s.feature_flag == Flag.GOOD for s in sequences)
@@ -461,7 +503,8 @@ def test_simple_becomes_complex(basic_config):
     for sequence, feature in zip(sequences[:2], [parent1, parent2]):
         assert sequence.origin == EventFlag.FIRST_IMAGE
         assert sequence.fate == EventFlag.COMPLEX
-        assert feature in sequence
+        if not reverse_feature_orders:
+            assert feature in sequence
     
     assert simple1.sequence in parent1.sequence.fate_sequences
     assert merge.sequence in parent1.sequence.fate_sequences
@@ -473,7 +516,8 @@ def test_simple_becomes_complex(basic_config):
     for seq, feat in zip(sequences[2:], [merge, simple1, simple2, simple3]):
         assert seq.origin == EventFlag.COMPLEX
         assert seq.fate == EventFlag.LAST_IMAGE
-        assert feat in seq
+        if not reverse_feature_orders:
+            assert feat in seq
     
     assert parent1.sequence in simple1.sequence.origin_sequences
     assert parent1.sequence in merge.sequence.origin_sequences
@@ -493,7 +537,8 @@ def test_simple_becomes_complex(basic_config):
         assert child.sequence.fate_event_id is None
 
 
-def test_merge_becomes_complex(basic_config):
+@pytest.mark.parametrize("reverse_feature_orders", [True, False])
+def test_merge_becomes_complex(basic_config, reverse_feature_orders):
     img = np.ones((2, 2))
     parent1 = Feature(1, (5, 10), img, img, img)
     parent2 = Feature(2, (6, 11), img, img, img)
@@ -506,9 +551,13 @@ def test_merge_becomes_complex(basic_config):
     tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
     tracked_image2.add_features(child1, child2)
     
-    tracked_image_set = link_features.link_features(
-        [tracked_image1, tracked_image2],
-        basic_config)
+    all_images = [tracked_image1, tracked_image2]
+    
+    if reverse_feature_orders:
+        for image in all_images:
+            image.features = image.features[::-1]
+    
+    tracked_image_set = link_features.link_features(all_images, basic_config)
     
     sequences = tracked_image_set.sequences
     assert all(s.feature_flag == Flag.GOOD for s in sequences)
@@ -535,7 +584,8 @@ def test_merge_becomes_complex(basic_config):
         assert child.sequence.fate_event_id is None
 
 
-def test_merge_becomes_complex_from_single_overlap(basic_config):
+@pytest.mark.parametrize("reverse_feature_orders", [True, False])
+def test_merge_becomes_complex_from_single_overlap(basic_config, reverse_feature_orders):
     img = np.ones((2, 2))
     parent1 = Feature(1, (5, 10), img, img, img)
     parent2 = Feature(2, (6, 11), img, img, img)
@@ -550,9 +600,13 @@ def test_merge_becomes_complex_from_single_overlap(basic_config):
     tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
     tracked_image2.add_features(child1, child2)
     
-    tracked_image_set = link_features.link_features(
-        [tracked_image1, tracked_image2],
-        basic_config)
+    all_images = [tracked_image1, tracked_image2]
+    
+    if reverse_feature_orders:
+        for image in all_images:
+            image.features = image.features[::-1]
+    
+    tracked_image_set = link_features.link_features(all_images, basic_config)
     
     sequences = tracked_image_set.sequences
     assert all(s.feature_flag == Flag.GOOD for s in sequences)
@@ -569,8 +623,9 @@ def test_merge_becomes_complex_from_single_overlap(basic_config):
     for feature in [child1, child2]:
         assert feature.sequence.origin == EventFlag.COMPLEX
         assert feature.sequence.fate == EventFlag.LAST_IMAGE
-    assert child1.sequence.origin_sequences == sequences[:2]
-    assert child2.sequence.origin_sequences == sequences[1:2]
+    assert parent1.sequence in child1.sequence.origin_sequences
+    assert parent2.sequence in child1.sequence.origin_sequences
+    assert parent2.sequence in child2.sequence.origin_sequences
     
     for parent in (parent1, parent2):
         assert parent.sequence.origin_event_id is None
@@ -581,7 +636,8 @@ def test_merge_becomes_complex_from_single_overlap(basic_config):
         assert child.sequence.fate_event_id is None
 
 
-def test_sequence_break_on_flag_change_simple_sequence(basic_config):
+@pytest.mark.parametrize("reverse_feature_orders", [True, False])
+def test_sequence_break_on_flag_change_simple_sequence(basic_config, reverse_feature_orders):
     img = np.ones((2, 2))
     feature1 = Feature(1, (5, 10), img, img, img)
     feature2 = Feature(2, (5, 10), img, img, img)
@@ -591,7 +647,7 @@ def test_sequence_break_on_flag_change_simple_sequence(basic_config):
     feature4.flag = Flag.TOO_BIG
     feature5 = Feature(5, (5, 10), img, img, img)
     feature5.flag = Flag.TOO_BIG
-
+    
     tracked_image1 = TrackedImage(time=datetime(1, 1, 1))
     tracked_image1.add_features(feature1)
     tracked_image2 = TrackedImage(time=datetime(1, 1, 2))
@@ -602,11 +658,15 @@ def test_sequence_break_on_flag_change_simple_sequence(basic_config):
     tracked_image4.add_features(feature4)
     tracked_image5 = TrackedImage(time=datetime(1, 1, 5))
     tracked_image5.add_features(feature5)
-
-    tracked_image_set = link_features.link_features(
-        [tracked_image1, tracked_image2, tracked_image3, tracked_image4,
-         tracked_image5],
-        basic_config)
+    
+    all_images = [tracked_image1, tracked_image2, tracked_image3,
+                  tracked_image4, tracked_image5]
+    
+    if reverse_feature_orders:
+        for image in all_images:
+            image.features = image.features[::-1]
+    
+    tracked_image_set = link_features.link_features(all_images, basic_config)
     
     sequences = tracked_image_set.sequences
     assert len(sequences) == 3
@@ -639,7 +699,8 @@ def test_sequence_break_on_flag_change_simple_sequence(basic_config):
         assert sequence.fate_event_id is None
 
 
-def test_sequence_break_on_flag_change_merge(basic_config):
+@pytest.mark.parametrize("reverse_feature_orders", [True, False])
+def test_sequence_break_on_flag_change_merge(basic_config, reverse_feature_orders):
     img = np.ones((2, 2))
     parent1A = Feature(1, (7, 12), img, img, img)
     parent1A.flag = Flag.GOOD
@@ -668,11 +729,15 @@ def test_sequence_break_on_flag_change_merge(basic_config):
     tracked_image4.add_features(childB)
     tracked_image5 = TrackedImage(time=datetime(1, 1, 5))
     tracked_image5.add_features(childC)
-
-    tracked_image_set = link_features.link_features(
-        [tracked_image1, tracked_image2, tracked_image3, tracked_image4,
-         tracked_image5],
-        basic_config)
+    
+    all_images = [tracked_image1, tracked_image2, tracked_image3,
+                  tracked_image4, tracked_image5]
+    
+    if reverse_feature_orders:
+        for image in all_images:
+            image.features = image.features[::-1]
+    
+    tracked_image_set = link_features.link_features(all_images, basic_config)
     
     sequences = tracked_image_set.sequences
     assert len(sequences) == 6
@@ -700,8 +765,8 @@ def test_sequence_break_on_flag_change_merge(basic_config):
             assert sequence.fate == EventFlag.MERGE
         elif sequence.features == [childA, childB]:
             assert sequence.fate_sequences == [childC.sequence]
-            assert sequence.origin_sequences == [
-                parent1B.sequence, parent2B.sequence]
+            assert parent1B.sequence in sequence.origin_sequences
+            assert parent2B.sequence in sequence.origin_sequences
             assert sequence.origin == EventFlag.MERGE
             assert sequence.fate == Flag.CLOSE_NEIGHBOR
         elif sequence.features == [childC]:
@@ -724,7 +789,8 @@ def test_sequence_break_on_flag_change_merge(basic_config):
     assert childA.sequence.origin_event_id == parent2B.sequence.fate_event_id
 
 
-def test_sequence_break_on_flag_change_split(basic_config):
+@pytest.mark.parametrize("reverse_feature_orders", [True, False])
+def test_sequence_break_on_flag_change_split(basic_config, reverse_feature_orders):
     img = np.ones((2, 2))
     parentA = Feature(1, (5, 10), img, img, img)
     parentA.flag = Flag.GOOD
@@ -754,10 +820,14 @@ def test_sequence_break_on_flag_change_split(basic_config):
     tracked_image5 = TrackedImage(time=datetime(1, 1, 5))
     tracked_image5.add_features(child1C, child2C)
     
-    tracked_image_set = link_features.link_features(
-        [tracked_image1, tracked_image2, tracked_image3, tracked_image4,
-         tracked_image5],
-        basic_config)
+    all_images = [tracked_image1, tracked_image2, tracked_image3,
+                  tracked_image4, tracked_image5]
+    
+    if reverse_feature_orders:
+        for image in all_images:
+            image.features = image.features[::-1]
+    
+    tracked_image_set = link_features.link_features(all_images, basic_config)
     
     sequences = tracked_image_set.sequences
     assert len(sequences) == 6
@@ -769,8 +839,8 @@ def test_sequence_break_on_flag_change_split(basic_config):
             assert sequence.origin == EventFlag.FIRST_IMAGE
             assert sequence.fate == Flag.EDGE
         elif sequence.features == [parentB]:
-            assert sequence.fate_sequences == [
-                child1A.sequence, child2A.sequence]
+            assert child1A.sequence in sequence.fate_sequences
+            assert child2A.sequence in sequence.fate_sequences
             assert sequence.origin_sequences == [parentA.sequence]
             assert sequence.origin == Flag.GOOD
             assert sequence.fate == EventFlag.SPLIT
@@ -809,7 +879,8 @@ def test_sequence_break_on_flag_change_split(basic_config):
         assert child.sequence.origin_event_id == parentB.sequence.fate_event_id
 
 
-def test_sequence_break_on_flag_change_complex(basic_config):
+@pytest.mark.parametrize("reverse_feature_orders", [True, False])
+def test_sequence_break_on_flag_change_complex(basic_config, reverse_feature_orders):
     img = np.ones((2, 2))
     parent1A = Feature(1, (6, 11), img, img, img)
     parent1A.flag = Flag.GOOD
@@ -843,10 +914,14 @@ def test_sequence_break_on_flag_change_complex(basic_config):
     tracked_image5 = TrackedImage(time=datetime(1, 1, 5))
     tracked_image5.add_features(child1C, child2C)
     
-    tracked_image_set = link_features.link_features(
-        [tracked_image1, tracked_image2, tracked_image3, tracked_image4,
-         tracked_image5],
-        basic_config)
+    all_images = [tracked_image1, tracked_image2, tracked_image3,
+                  tracked_image4, tracked_image5]
+    
+    if reverse_feature_orders:
+        for image in all_images:
+            image.features = image.features[::-1]
+    
+    tracked_image_set = link_features.link_features(all_images, basic_config)
     
     sequences = tracked_image_set.sequences
     assert len(sequences) == 8
@@ -858,8 +933,8 @@ def test_sequence_break_on_flag_change_complex(basic_config):
             assert sequence.origin == EventFlag.FIRST_IMAGE
             assert sequence.fate == Flag.EDGE
         elif sequence.features == [parent1B]:
-            assert sequence.fate_sequences == [
-                child1A.sequence, child2A.sequence]
+            assert child1A.sequence in sequence.fate_sequences
+            assert child2A.sequence in sequence.fate_sequences
             assert sequence.origin_sequences == [parent1A.sequence]
             assert sequence.origin == Flag.GOOD
             assert sequence.fate == EventFlag.COMPLEX
@@ -869,15 +944,15 @@ def test_sequence_break_on_flag_change_complex(basic_config):
             assert sequence.origin == EventFlag.FIRST_IMAGE
             assert sequence.fate == Flag.GOOD
         elif sequence.features == [parent2B]:
-            assert sequence.fate_sequences == [
-                child1A.sequence, child2A.sequence]
+            assert child1A.sequence in sequence.fate_sequences
+            assert child2A.sequence in sequence.fate_sequences
             assert sequence.origin_sequences == [parent2A.sequence]
             assert sequence.origin == Flag.TOO_BIG
             assert sequence.fate == EventFlag.COMPLEX
         elif sequence.features == [child1A, child1B]:
             assert sequence.fate_sequences == [child1C.sequence]
-            assert sequence.origin_sequences == [
-                parent1B.sequence, parent2B.sequence]
+            assert parent1B.sequence in sequence.origin_sequences
+            assert parent2B.sequence in sequence.origin_sequences
             assert sequence.origin == EventFlag.COMPLEX
             assert sequence.fate == Flag.TOO_BIG
         elif sequence.features == [child1C]:
@@ -887,8 +962,8 @@ def test_sequence_break_on_flag_change_complex(basic_config):
             assert sequence.fate == EventFlag.LAST_IMAGE
         elif sequence.features == [child2A, child2B]:
             assert sequence.fate_sequences == [child2C.sequence]
-            assert sequence.origin_sequences == [
-                parent1B.sequence, parent2B.sequence]
+            assert parent1B.sequence in sequence.origin_sequences
+            assert parent2B.sequence in sequence.origin_sequences
             assert sequence.origin == EventFlag.COMPLEX
             assert sequence.fate == Flag.GOOD
         elif sequence.features == [child2C]:
@@ -1063,7 +1138,8 @@ def test_min_lifetime(basic_config):
         assert sequence.fate_event_id is None
 
 
-def test_identify_all_events(basic_config):
+@pytest.mark.parametrize("reverse_feature_orders", [True, False])
+def test_identify_all_events(basic_config, reverse_feature_orders):
     img = np.ones((2, 2))
     parent1A = Feature(1, (6, 11), img, img, img)
     parent1B = Feature(2, (5, 10), img, img, img)
@@ -1096,10 +1172,14 @@ def test_identify_all_events(basic_config):
     tracked_image6 = TrackedImage(time=datetime(1, 1, 6))
     tracked_image6.add_features(greatgrandchild1A)
     
-    tracked_image_set = link_features.link_features(
-        [tracked_image1, tracked_image2, tracked_image3, tracked_image4,
-         tracked_image5, tracked_image6],
-        basic_config)
+    all_images = [tracked_image1, tracked_image2, tracked_image3,
+                  tracked_image4, tracked_image5, tracked_image6]
+    
+    if reverse_feature_orders:
+        for image in all_images:
+            image.features = image.features[::-1]
+    
+    tracked_image_set = link_features.link_features(all_images, basic_config)
     
     events = link_features._identify_all_events(tracked_image_set.sequences)
     
