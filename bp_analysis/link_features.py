@@ -252,13 +252,37 @@ def link_features(tracked_images: list[TrackedImage],
         if len(big_inputs) == 1 and len(big_outputs) == 1:
             first_portion = big_inputs[0]
             second_portion = big_outputs[0]
-            if first_portion.feature_flag != second_portion.feature_flag:
-                continue
             small_inputs = [input for input in event.inputs
                             if input is not first_portion]
             small_outputs = [output for output in event.outputs
                              if output is not second_portion]
             
+            if not len(small_inputs) and not len(small_outputs):
+                continue
+            
+            if first_portion.feature_flag != second_portion.feature_flag:
+                # If this happened without any small features involved,
+                # this wouldn't be tagged as a split/merge/complex, just a
+                # flag change. Let's restore that.
+                first_portion.fate_sequences = [second_portion]
+                second_portion.origin_sequences = [first_portion]
+                first_portion.fate = second_portion.feature_flag
+                second_portion.origin = first_portion.feature_flag
+                first_portion.fate_event_id = None
+                second_portion.origin_event_id = None
+                first_portion.releases.extend(small_outputs)
+                second_portion.absorbs.extend(small_inputs)
+                
+                for input in small_inputs:
+                    input.fate = EventFlag.ABSORBED
+                    input.fate_sequences = [second_portion]
+                for output in small_outputs:
+                    output.origin = EventFlag.RELEASED
+                    output.origin_sequences = [first_portion]
+                continue
+            
+            # Otherwise let's join the big output to the big input, and flag
+            # everything else as absorbed/released
             feature_sequences.remove(second_portion)
             first_portion.add_features(*second_portion.features)
             first_portion.fate = second_portion.fate

@@ -1237,6 +1237,8 @@ def test_split_merge_complex_size_ratio(basic_config, reverse_feature_orders):
     feature9.flag = Flag.TOO_BIG
     feature10 = Feature(10, (5, 6), big_img, big_img, big_img)
     feature10.flag = Flag.TOO_SMALL
+    feature11 = Feature(11, (5, 10), big_img, big_img, big_img)
+    feature11.flag = Flag.TOO_LONG
     
     absorb2 = Feature(-1, (7, 12), small_img, small_img, small_img)
     absorb2b = Feature(-2, (8, 13), small_img, small_img, small_img)
@@ -1272,11 +1274,13 @@ def test_split_merge_complex_size_ratio(basic_config, reverse_feature_orders):
                                 absorb_at_discont9)
     tracked_image10 = TrackedImage(time=datetime(1, 1, 10))
     tracked_image10.add_features(feature10, release_at_discont10)
+    tracked_image11 = TrackedImage(time=datetime(1, 1, 11))
+    tracked_image11.add_features(feature11)
     
     all_images = [tracked_image1, tracked_image2, tracked_image3,
                   tracked_image4, tracked_image5, tracked_image6,
                   tracked_image7, tracked_image8, tracked_image9,
-                  tracked_image10]
+                  tracked_image10, tracked_image11]
     
     if reverse_feature_orders:
         for image in all_images:
@@ -1287,9 +1291,10 @@ def test_split_merge_complex_size_ratio(basic_config, reverse_feature_orders):
     
     sequences = tracked_image_set.sequences
     assert all(feature8 in s.features or feature9 in s.features
-               or feature10 in s.features or s.feature_flag == Flag.GOOD
+               or feature10 in s.features or feature11 in s.features
+               or s.feature_flag == Flag.GOOD
                for s in sequences)
-    assert len(sequences) == 13
+    assert len(sequences) == 14
     
     main_seq = feature1.sequence
     absorb_release_sequence = absorb_release4.sequence
@@ -1325,39 +1330,44 @@ def test_split_merge_complex_size_ratio(basic_config, reverse_feature_orders):
         assert seq.fate == EventFlag.ABSORBED
         assert seq.fate_sequences == [main_seq]
     
-    assert absorb_at_discont7.sequence.fate == EventFlag.MERGE
-    assert main_seq.fate == EventFlag.MERGE
-    assert feature8.sequence.origin == EventFlag.MERGE
+    assert absorb_at_discont7.sequence.fate == EventFlag.ABSORBED
     assert absorb_at_discont7.sequence.fate_sequences == [feature8.sequence]
+    assert main_seq.fate == feature8.sequence.feature_flag
+    assert feature8.sequence.origin == main_seq.feature_flag
     assert main_seq.fate_sequences == [feature8.sequence]
-    assert main_seq in feature8.sequence.origin_sequences
-    assert absorb_at_discont7.sequence in feature8.sequence.origin_sequences
-    assert (None is not main_seq.fate_event_id
-            == feature8.sequence.origin_event_id
-            == absorb_at_discont7.sequence.fate_event_id)
+    assert feature8.sequence.origin_sequences == [main_seq]
+    assert main_seq.fate_event_id is feature8.sequence.origin_event_id is None
+    assert absorb_at_discont7.sequence.fate_event_id is not None
     
-    assert release_at_discont9.sequence.origin == EventFlag.SPLIT
-    assert feature9.sequence.origin == EventFlag.SPLIT
-    assert feature8.sequence.fate == EventFlag.SPLIT
+    assert release_at_discont9.sequence.origin == EventFlag.RELEASED
     assert release_at_discont9.sequence.origin_sequences == [feature8.sequence]
+    assert feature9.sequence.origin == feature8.sequence.feature_flag
+    assert feature8.sequence.fate == feature9.sequence.feature_flag
     assert feature9.sequence.origin_sequences == [feature8.sequence]
-    assert feature9.sequence in feature8.sequence.fate_sequences
-    assert release_at_discont9.sequence in feature8.sequence.fate_sequences
-    assert (None is not feature8.sequence.fate_event_id
-            == feature9.sequence.origin_event_id
-            == release_at_discont9.sequence.origin_event_id)
+    assert feature8.sequence.fate_sequences == [feature9.sequence]
+    assert (feature8.sequence.fate_event_id is feature9.sequence.origin_event_id
+            is None)
+    assert release_at_discont9.sequence.origin_event_id is not None
     
-    assert absorb_at_discont9.sequence.fate == EventFlag.COMPLEX
-    assert feature9.sequence.fate == EventFlag.COMPLEX
-    assert release_at_discont10.sequence.origin == EventFlag.COMPLEX
-    assert feature10.sequence.origin == EventFlag.COMPLEX
-    assert absorb_at_discont9.sequence in feature10.sequence.origin_sequences
-    assert feature9.sequence in feature10.sequence.origin_sequences
+    assert absorb_at_discont9.sequence.fate == EventFlag.ABSORBED
+    assert feature9.sequence.fate == feature10.sequence.feature_flag
+    assert release_at_discont10.sequence.origin == EventFlag.RELEASED
+    assert feature10.sequence.origin == feature9.sequence.feature_flag
+    assert feature10.sequence.origin_sequences == [feature9.sequence]
     assert release_at_discont10.sequence.origin_sequences == [feature9.sequence]
-    assert feature10.sequence in feature9.sequence.fate_sequences
-    assert release_at_discont10.sequence in feature9.sequence.fate_sequences
+    assert feature9.sequence.fate_sequences == [feature10.sequence]
     assert absorb_at_discont9.sequence.fate_sequences == [feature10.sequence]
-    assert (None is not feature9.sequence.fate_event_id
-            == absorb_at_discont9.sequence.fate_event_id
-            == feature10.sequence.origin_event_id
-            == release_at_discont10.sequence.origin_event_id)
+    assert (feature9.sequence.fate_event_id
+            is feature10.sequence.origin_event_id is None)
+    assert absorb_at_discont9.sequence.fate_event_id is not None
+    assert release_at_discont10.sequence.origin_event_id is not None
+    
+    # Ensure this change isn't "healed", since there's nothing to absorb or
+    # release
+    assert feature10.sequence.fate == feature11.flag
+    assert feature10.sequence.fate_event_id is None
+    assert feature10.sequence.fate_sequences == [feature11.sequence]
+    assert feature11.sequence.origin == feature10.flag
+    assert feature11.sequence.origin_event_id is None
+    assert feature11.sequence.origin_sequences == [feature10.sequence]
+    assert feature11.sequence.fate == EventFlag.LAST_IMAGE
