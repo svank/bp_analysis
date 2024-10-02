@@ -366,6 +366,13 @@ class TrackedImageSet:
                 return tracked_image
         return self.tracked_images[index]
     
+    def __contains__(self, index):
+        try:
+            self[index]
+            return True
+        except (TypeError, IndexError):
+            return False
+    
     def __repr__(self):
         return f"<TrackedImageSet with {len(self.sequences)} sequences>"
 
