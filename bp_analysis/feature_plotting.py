@@ -24,7 +24,8 @@ class FeaturePlottingMixin:
     def plot_onto(self, ax, ids=False, sequence_ids=False, legend=False,
                   label_flag=False, label_seq_flag=False, simple_colors=False,
                   label_on_click=True, offset=(0, 0), plot_bounds=None,
-                  line_thickness=1, emphasize_id=None, emphasize_seq_id=None):
+                  line_thickness=1, emphasize_id=None, emphasize_seq_id=None,
+                  scale=1):
         if (emphasize_id == self.id
                 or (self.sequence is not None
                     and self.sequence.id == emphasize_seq_id)):
@@ -42,7 +43,7 @@ class FeaturePlottingMixin:
                     and self.sequence.flag == SequenceFlag.TOO_SHORT):
                 color, _, outline_color = COLORS[SequenceFlag.TOO_SHORT]
         
-        line = outline_BP(r, c, scale=1, line_color=color, ax=ax,
+        line = outline_BP(r, c, scale=scale, line_color=color, ax=ax,
                           outline_color=outline_color, plot_bounds=plot_bounds,
                           linewidth=line_thickness)
         text_pieces = []
