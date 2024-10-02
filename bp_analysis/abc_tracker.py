@@ -482,11 +482,16 @@ def load_file(im, config):
         source_file = im
         im, hdr = fits.getdata(im, header=True)
         time = datetime.strptime(hdr['date-avg'], "%Y-%m-%dT%H:%M:%S.%f")
-        if trim := get_cfg(config, 'main', 'trim_image'):
-            im = im[trim:-trim, trim:-trim]
     else:
         time = None
         source_file = None
+    im = np.squeeze(im)
+    if trim := get_cfg(config, 'main', 'trim_image'):
+        im = im[trim:-trim, trim:-trim]
+    if im.dtype.byteorder != '=':
+        # Numba wants native byte orders dtype.name seems to be the type but
+        # without endianness information (and so defaulting to native)
+        im = im.astype(im.dtype.name)
     return im, time, source_file
 
 
