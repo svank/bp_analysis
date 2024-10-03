@@ -213,13 +213,21 @@ class TrackedImage:
             map[feature.indices] = feature.id
         return map
     
-    def seed_map(self):
-        map = np.zeros(self.source_shape, dtype=int)
+    def data_cutout_map(self):
+        map = np.zeros(self.source_shape)
         for feature in self.features:
-            indices = feature.seed_cutout.nonzero()
+            r, c = feature.cutout_corner
+            map[r:r+feature.cutout.shape[0],
+                c:c+feature.cutout.shape[1]] = feature.data_cutout
+        return map
+    
+    def seed_map(self):
+        map = np.zeros(self.source_shape, dtype=bool)
+        for feature in self.features:
+            indices = list(feature.seed_cutout.nonzero())
             indices[0] += feature.cutout_corner[0]
             indices[1] += feature.cutout_corner[1]
-            map[indices] = 1
+            map[tuple(indices)] = 1
         return map
     
     def __getitem__(self, id) -> "Feature | TrackedImage":

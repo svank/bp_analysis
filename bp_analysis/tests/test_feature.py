@@ -22,7 +22,7 @@ def feature():
         [0, 3, 1, 0],
         [1, 2, 4, 0],
         [1, 1, 3, 1],
-        [8, 0, 1, 1]
+        [0, 0, 1, 1]
     ])
     seeds = np.array([
         [0, 1, 0, 0],
@@ -103,6 +103,13 @@ def test_indices():
     )
     np.testing.assert_array_equal(feature.indices[0], np.array((10, 11)))
     np.testing.assert_array_equal(feature.indices[1], np.array((16, 16)))
+
+
+def test_seed_map(various_features):
+    np.testing.assert_array_equal(
+        various_features.seed_map(),
+        various_features.data_cutout_map() > 1
+    )
 
 
 def test_FeatureSequence_getitem(feature):
