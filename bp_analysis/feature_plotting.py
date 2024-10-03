@@ -274,11 +274,19 @@ def outline_BP(r, c, scale=16 / 1000, line_color=(1, 1, 1, .8),
     
     if ax is None:
         ax = plt.gca()
+    xs, ys = segments[:, 1], segments[:, 0]
     line, = ax.plot(
-        segments[:, 1], segments[:, 0], color=line_color,
+        xs, ys, color=line_color,
         linewidth=1.6 * linewidth,
         path_effects=[
             pe.withStroke(linewidth=2.6 * linewidth, foreground=outline_color,
                           alpha=outline_alpha)],
         **kwargs)
+    good = np.isfinite(xs) * np.isfinite(ys)
+    xs = xs[good]
+    ys = ys[good]
+    # Avoid features at the edge of the plot causing a margin to be drawn
+    # around the image
+    line.sticky_edges.x[:] = [xs.min(), xs.max()]
+    line.sticky_edges.y[:] = [ys.min(), ys.max()]
     return line
