@@ -105,13 +105,6 @@ def test_indices():
     np.testing.assert_array_equal(feature.indices[1], np.array((16, 16)))
 
 
-def test_seed_map(various_features):
-    np.testing.assert_array_equal(
-        various_features.seed_map(),
-        various_features.data_cutout_map() > 1
-    )
-
-
 def test_FeatureSequence_getitem(feature):
     feature.id = 1
     feature.time = datetime(1, 1, 1)
@@ -197,3 +190,61 @@ def test_TrackedImage_feature_map(map_with_features):
     tracked_image = TrackedImage(source_shape=map.shape)
     tracked_image.add_features_from_map(map, map, map)
     np.testing.assert_array_equal(tracked_image.feature_map(), map)
+
+
+def test_TrackedImage_seed_map_and_data_cutout_map(various_features):
+    np.testing.assert_array_equal(
+        various_features.seed_map(),
+        various_features.data_cutout_map() > 1
+    )
+
+
+@pytest.mark.parametrize("slice1", [np.s_[11:33, 8:18],
+                                    np.s_[-10:-5, -11:-4],
+                                    np.s_[11:-10, 8:-12]])
+@pytest.mark.parametrize("slice2", [np.s_[11:33, 8:18],
+                                    np.s_[-10:-5, -11:-4],
+                                    np.s_[11:-10, 8:-12]])
+def test_TrackedImage_feature_map_slice(various_features, slice1, slice2):
+    np.testing.assert_array_equal(
+        various_features.feature_map()[slice1],
+        various_features[slice1].feature_map()
+    )
+    np.testing.assert_array_equal(
+        various_features.feature_map()[slice1][slice2],
+        various_features[slice1][slice2].feature_map()
+    )
+
+
+@pytest.mark.parametrize("slice1", [np.s_[11:33, 8:18],
+                                    np.s_[-10:-5, -11:-4],
+                                    np.s_[11:-10, 8:-12]])
+@pytest.mark.parametrize("slice2", [np.s_[11:33, 8:18],
+                                    np.s_[-10:-5, -11:-4],
+                                    np.s_[11:-10, 8:-12]])
+def test_TrackedImage_data_cutout_map_slice(various_features, slice1, slice2):
+    np.testing.assert_array_equal(
+        various_features.data_cutout_map()[slice1],
+        various_features[slice1].data_cutout_map()
+    )
+    np.testing.assert_array_equal(
+        various_features.data_cutout_map()[slice1][slice2],
+        various_features[slice1][slice2].data_cutout_map()
+    )
+
+
+@pytest.mark.parametrize("slice1", [np.s_[11:33, 8:18],
+                                    np.s_[-10:-5, -11:-4],
+                                    np.s_[11:-10, 8:-12]])
+@pytest.mark.parametrize("slice2", [np.s_[11:33, 8:18],
+                                    np.s_[-10:-5, -11:-4],
+                                    np.s_[11:-10, 8:-12]])
+def test_TrackedImage_seed_map_slice(various_features, slice1, slice2):
+    np.testing.assert_array_equal(
+        various_features.seed_map()[slice1],
+        various_features[slice1].seed_map()
+    )
+    np.testing.assert_array_equal(
+        various_features.seed_map()[slice1][slice2],
+        various_features[slice1][slice2].seed_map()
+    )

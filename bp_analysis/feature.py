@@ -150,6 +150,8 @@ class TrackedImage:
         self.time = time
         self.config = config
         self.plot_bounds = None
+        self.slice: tuple[slice] = None
+        self.unsliced_image: TrackedImage = None
     
     def __repr__(self):
         return f"<TrackedImage, t={self.time}, {len(self.features)} features>"
@@ -208,12 +210,16 @@ class TrackedImage:
         ax.set_aspect('equal')
     
     def feature_map(self):
+        if self.unsliced_image is not None:
+            return self.unsliced_image.feature_map()[self.slice]
         map = np.zeros(self.source_shape, dtype=int)
         for feature in self.features:
             map[feature.indices] = feature.id
         return map
     
     def data_cutout_map(self):
+        if self.unsliced_image is not None:
+            return self.unsliced_image.data_cutout_map()[self.slice]
         map = np.zeros(self.source_shape)
         for feature in self.features:
             r, c = feature.cutout_corner
@@ -222,6 +228,8 @@ class TrackedImage:
         return map
     
     def seed_map(self):
+        if self.unsliced_image is not None:
+            return self.unsliced_image.seed_map()[self.slice]
         map = np.zeros(self.source_shape, dtype=bool)
         for feature in self.features:
             indices = list(feature.seed_cutout.nonzero())
@@ -243,11 +251,17 @@ class TrackedImage:
                 if s.stop is None:
                     stop = size
                 elif s.stop < 0:
-                    stop = s.stop + size + 1
+                    stop = s.stop + size
+                    if stop < 0:
+                        stop = 0
                 else:
                     stop = s.stop
                 if s.start is None:
                     start = 0
+                elif s.start < 0:
+                    start = s.start + size
+                    if start < 0:
+                        start = 0
                 else:
                     start = s.start
                 if s.step is not None and s.step != 1:
@@ -265,6 +279,12 @@ class TrackedImage:
             sliced.plot_bounds = (
                 (0, slices[1].stop - slices[1].start),
                 (0, slices[0].stop - slices[0].start),
+            )
+            sliced.slice = tuple(slices)
+            sliced.unsliced_image = self
+            sliced.source_shape = (
+                slices[0].stop - slices[0].start,
+                slices[1].stop - slices[1].start
             )
             return sliced
         for feature in self.features:
